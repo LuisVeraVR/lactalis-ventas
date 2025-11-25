@@ -1,0 +1,131 @@
+"""Procesador de archivos Excel para productos."""
+import pandas as pd
+from typing import List
+from lactalis_ventas.domain.entities.producto import Producto
+
+
+class ProductoExcelProcessor:
+    """Procesador de archivos Excel de productos."""
+
+    # Columnas esperadas en el Excel
+    COLUMNAS_ESPERADAS = {
+        "codigo": ["codigo", "código", "codigo_producto", "cod_producto", "code"],
+        "descripcion": ["descripcion", "descripción", "descripcion_producto", "nombre", "producto"],
+        "grupo": ["grupo", "categoria", "categoría", "tipo", "grupo_producto"],
+        "se_registra": ["se_registra", "activo", "estado", "active"]
+    }
+
+    def procesar_archivo(self, ruta_archivo: str) -> List[Producto]:
+        """
+        Procesa un archivo Excel y retorna una lista de Producto.
+
+        Args:
+            ruta_archivo: Ruta al archivo Excel
+
+        Returns:
+            Lista de Producto extraídos del Excel
+
+        Raises:
+            Exception: Si hay errores al procesar el archivo
+        """
+        try:
+            # Leer el archivo Excel
+            df = pd.read_excel(ruta_archivo)
+
+            # Normalizar nombres de columnas
+            df.columns = [col.strip().lower() for col in df.columns]
+
+            # Mapear columnas
+            columnas_mapeadas = self._mapear_columnas(df.columns)
+
+            # Validar que existan las columnas requeridas (al menos codigo y descripcion)
+            if "codigo" not in columnas_mapeadas:
+                raise ValueError("El Excel debe contener una columna de 'código'")
+            if "descripcion" not in columnas_mapeadas:
+                raise ValueError("El Excel debe contener una columna de 'descripción'")
+
+            # Si no hay columna grupo, usar valor por defecto
+            if "grupo" not in columnas_mapeadas:
+                df["_grupo_default"] = "General"
+                columnas_mapeadas["grupo"] = "_grupo_default"
+
+            # Si no hay columna se_registra, usar True por defecto
+            if "se_registra" not in columnas_mapeadas:
+                df["_activo_default"] = True
+                columnas_mapeadas["se_registra"] = "_activo_default"
+
+            # Procesar cada fila
+            productos = []
+            errores = []
+
+            for idx, row in df.iterrows():
+                try:
+                    producto = self._procesar_fila(row, columnas_mapeadas, idx)
+                    if producto:
+                        productos.append(producto)
+                except Exception as e:
+                    errores.append(f"Fila {idx + 2}: {str(e)}")
+                    continue
+
+            if errores:
+                print(f"Advertencias durante la importación:")
+                for error in errores[:10]:  # Mostrar máximo 10 errores
+                    print(f"  - {error}")
+                if len(errores) > 10:
+                    print(f"  ... y {len(errores) - 10} errores más")
+
+            return productos
+
+        except Exception as e:
+            raise Exception(f"Error al procesar archivo Excel de productos: {str(e)}")
+
+    def _mapear_columnas(self, columnas_df: List[str]) -> dict:
+        """Mapea las columnas del DataFrame a las columnas esperadas."""
+        mapeo = {}
+        columnas_df_lower = [col.lower().strip() for col in columnas_df]
+
+        for col_esperada, variantes in self.COLUMNAS_ESPERADAS.items():
+            for variante in variantes:
+                if variante.lower() in columnas_df_lower:
+                    idx = columnas_df_lower.index(variante.lower())
+                    mapeo[col_esperada] = columnas_df[idx]
+                    break
+
+        return mapeo
+
+    def _procesar_fila(self, row, columnas_mapeadas: dict, idx: int) -> Producto:
+        """Procesa una fila del DataFrame y retorna un Producto."""
+        # Extraer datos de la fila
+        codigo = str(row[columnas_mapeadas["codigo"]]).strip()
+        descripcion = str(row[columnas_mapeadas["descripcion"]]).strip()
+        grupo = str(row[columnas_mapeadas["grupo"]]).strip()
+
+        # Procesar se_registra
+        se_registra_raw = row[columnas_mapeadas["se_registra"]]
+        if isinstance(se_registra_raw, bool):
+            se_registra = se_registra_raw
+        elif isinstance(se_registra_raw, (int, float)):
+            se_registra = bool(int(se_registra_raw))
+        elif isinstance(se_registra_raw, str):
+            se_registra_lower = se_registra_raw.lower().strip()
+            se_registra = se_registra_lower in ["true", "1", "si", "sí", "yes", "activo"]
+        else:
+            se_registra = True
+
+        # Validar que los datos básicos no estén vacíos
+        if not codigo or codigo == "nan":
+            raise ValueError("Código vacío")
+        if not descripcion or descripcion == "nan":
+            raise ValueError("Descripción vacía")
+        if not grupo or grupo == "nan":
+            grupo = "General"
+
+        # Crear el producto
+        producto = Producto(
+            codigo=codigo,
+            descripcion=descripcion,
+            grupo=grupo,
+            se_registra=se_registra
+        )
+
+        return producto

@@ -8,6 +8,8 @@ from lactalis_ventas.infrastructure.database.producto_repository_impl import Pro
 from lactalis_ventas.infrastructure.database.tercero_repository_impl import TerceroRepositoryImpl
 from lactalis_ventas.infrastructure.database.factura_repository_impl import FacturaRepositoryImpl
 from lactalis_ventas.infrastructure.excel.excel_processor import ExcelProcessor
+from lactalis_ventas.infrastructure.excel.producto_excel_processor import ProductoExcelProcessor
+from lactalis_ventas.infrastructure.excel.tercero_excel_processor import TerceroExcelProcessor
 from lactalis_ventas.application.use_cases.procesar_facturas import ProcesarFacturasUseCase
 from lactalis_ventas.application.use_cases.gestionar_productos import (
     ListarProductosUseCase, BuscarProductosUseCase, CambiarEstadoProductoUseCase
@@ -15,6 +17,8 @@ from lactalis_ventas.application.use_cases.gestionar_productos import (
 from lactalis_ventas.application.use_cases.gestionar_terceros import (
     ListarTercerosUseCase, BuscarTercerosUseCase, CambiarEstadoTerceroUseCase
 )
+from lactalis_ventas.application.use_cases.importar_productos import ImportarProductosUseCase
+from lactalis_ventas.application.use_cases.importar_terceros import ImportarTercerosUseCase
 from lactalis_ventas.application.use_cases.obtener_estadisticas import ObtenerEstadisticasUseCase
 from lactalis_ventas.presentation.tabs.procesar_excel_tab import ProcesarExcelTab
 from lactalis_ventas.presentation.tabs.productos_tab import ProductosTab
@@ -40,8 +44,10 @@ class MainWindow(QMainWindow):
         self.tercero_repo = TerceroRepositoryImpl(self.database)
         self.factura_repo = FacturaRepositoryImpl(self.database)
 
-        # Inicializar procesador de Excel
+        # Inicializar procesadores de Excel
         self.excel_processor = ExcelProcessor()
+        self.producto_excel_processor = ProductoExcelProcessor()
+        self.tercero_excel_processor = TerceroExcelProcessor()
 
         # Inicializar casos de uso
         self._inicializar_casos_uso()
@@ -62,11 +68,13 @@ class MainWindow(QMainWindow):
         self.listar_productos_uc = ListarProductosUseCase(self.producto_repo)
         self.buscar_productos_uc = BuscarProductosUseCase(self.producto_repo)
         self.cambiar_estado_producto_uc = CambiarEstadoProductoUseCase(self.producto_repo)
+        self.importar_productos_uc = ImportarProductosUseCase(self.producto_repo)
 
         # Casos de uso de terceros
         self.listar_terceros_uc = ListarTercerosUseCase(self.tercero_repo)
         self.buscar_terceros_uc = BuscarTercerosUseCase(self.tercero_repo)
         self.cambiar_estado_tercero_uc = CambiarEstadoTerceroUseCase(self.tercero_repo)
+        self.importar_terceros_uc = ImportarTercerosUseCase(self.tercero_repo)
 
         # Casos de uso de estadísticas
         self.obtener_estadisticas_uc = ObtenerEstadisticasUseCase(self.factura_repo)
@@ -96,7 +104,9 @@ class MainWindow(QMainWindow):
         self.productos_tab = ProductosTab(
             self.listar_productos_uc,
             self.buscar_productos_uc,
-            self.cambiar_estado_producto_uc
+            self.cambiar_estado_producto_uc,
+            self.importar_productos_uc,
+            self.producto_excel_processor
         )
         self.tabs.addTab(self.productos_tab, "📦 Productos")
 
@@ -104,7 +114,9 @@ class MainWindow(QMainWindow):
         self.terceros_tab = TercerosTab(
             self.listar_terceros_uc,
             self.buscar_terceros_uc,
-            self.cambiar_estado_tercero_uc
+            self.cambiar_estado_tercero_uc,
+            self.importar_terceros_uc,
+            self.tercero_excel_processor
         )
         self.tabs.addTab(self.terceros_tab, "👥 Terceros")
 

@@ -2,12 +2,14 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QLineEdit, QTableWidget, QTableWidgetItem, QMessageBox,
-    QHeaderView, QGroupBox
+    QHeaderView, QGroupBox, QFileDialog
 )
 from PyQt6.QtCore import Qt
 from lactalis_ventas.application.use_cases.gestionar_terceros import (
     ListarTercerosUseCase, BuscarTercerosUseCase, CambiarEstadoTerceroUseCase
 )
+from lactalis_ventas.application.use_cases.importar_terceros import ImportarTercerosUseCase
+from lactalis_ventas.infrastructure.excel.tercero_excel_processor import TerceroExcelProcessor
 
 
 class TercerosTab(QWidget):
@@ -17,12 +19,16 @@ class TercerosTab(QWidget):
         self,
         listar_uc: ListarTercerosUseCase,
         buscar_uc: BuscarTercerosUseCase,
-        cambiar_estado_uc: CambiarEstadoTerceroUseCase
+        cambiar_estado_uc: CambiarEstadoTerceroUseCase,
+        importar_uc: ImportarTercerosUseCase,
+        excel_processor: TerceroExcelProcessor
     ):
         super().__init__()
         self.listar_uc = listar_uc
         self.buscar_uc = buscar_uc
         self.cambiar_estado_uc = cambiar_estado_uc
+        self.importar_uc = importar_uc
+        self.excel_processor = excel_processor
 
         self._configurar_ui()
         self.refrescar()
@@ -92,6 +98,23 @@ class TercerosTab(QWidget):
             }
         """)
         layout_busqueda.addWidget(btn_limpiar)
+
+        btn_importar = QPushButton("📥 Importar Excel")
+        btn_importar.clicked.connect(self._importar_excel)
+        btn_importar.setStyleSheet("""
+            QPushButton {
+                background-color: #16a085;
+                color: white;
+                padding: 8px 16px;
+                border: none;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #138d75;
+            }
+        """)
+        layout_busqueda.addWidget(btn_importar)
 
         grupo_busqueda.setLayout(layout_busqueda)
         layout.addWidget(grupo_busqueda)
@@ -276,3 +299,74 @@ class TercerosTab(QWidget):
                     "Error",
                     f"Error al desactivar el tercero:\n\n{str(e)}"
                 )
+
+    def _importar_excel(self):
+        """Importa terceros desde un archivo Excel."""
+        # Seleccionar archivo
+        archivo, _ = QFileDialog.getOpenFileName(
+            self,
+            "Seleccionar archivo Excel de terceros",
+            "",
+            "Archivos Excel (*.xlsx *.xls)"
+        )
+
+        if not archivo:
+            return
+
+        # Preguntar si actualizar existentes
+        respuesta = QMessageBox.question(
+            self,
+            "Modo de importación",
+            "¿Desea actualizar los terceros existentes?\n\n"
+            "SÍ: Los terceros existentes serán actualizados\n"
+            "NO: Los terceros existentes serán ignorados",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes
+        )
+        actualizar_existentes = respuesta == QMessageBox.StandardButton.Yes
+
+        try:
+            # Procesar archivo Excel
+            terceros = self.excel_processor.procesar_archivo(archivo)
+
+            if not terceros:
+                QMessageBox.warning(
+                    self,
+                    "Sin datos",
+                    "No se encontraron terceros válidos en el archivo Excel."
+                )
+                return
+
+            # Importar terceros
+            resultado = self.importar_uc.ejecutar(terceros, actualizar_existentes)
+
+            # Refrescar tabla
+            self.refrescar()
+
+            # Mostrar resultado
+            mensaje = (
+                f"Importación completada:\n\n"
+                f"Total leídos: {resultado.total_leidos}\n"
+                f"Nuevos: {resultado.terceros_nuevos}\n"
+                f"Actualizados: {resultado.terceros_actualizados}\n"
+                f"Ignorados: {resultado.terceros_ignorados}\n"
+                f"Errores: {len(resultado.errores)}"
+            )
+
+            if resultado.errores:
+                mensaje += "\n\nPrimeros errores:\n"
+                for error in resultado.errores[:5]:
+                    mensaje += f"- {error}\n"
+
+            QMessageBox.information(
+                self,
+                "Importación completada",
+                mensaje
+            )
+
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Error al importar",
+                f"Ocurrió un error al importar el archivo:\n\n{str(e)}"
+            )
