@@ -148,6 +148,28 @@ El archivo Excel debe contener las siguientes columnas (en cualquier orden):
 
 El procesador reconoce automáticamente las columnas por sus variantes.
 
+### Formato del Archivo Excel de Productos
+
+Para importar productos, el archivo Excel debe contener las siguientes columnas (en cualquier orden):
+
+- **codigo** / código / codigo_producto: Código del producto (requerido)
+- **descripcion** / descripción / nombre / producto: Descripción del producto (requerido)
+- **grupo** / categoria / categoría / tipo: Grupo del producto (opcional, por defecto: "General")
+- **activo** / se_registra / estado: Estado del producto (opcional, por defecto: True)
+
+Ejemplo: Ejecute `python generar_excel_productos_ejemplo.py` para generar un archivo de ejemplo.
+
+### Formato del Archivo Excel de Terceros
+
+Para importar terceros, el archivo Excel debe contener las siguientes columnas (en cualquier orden):
+
+- **cod_padre** / código padre / codigo: Código del tercero (requerido)
+- **nombre** / razon_social / cliente: Nombre del tercero (requerido)
+- **nit** / identificación / documento: NIT del tercero (requerido)
+- **activo** / se_registra / estado: Estado del tercero (opcional, por defecto: True)
+
+Ejemplo: Ejecute `python generar_excel_terceros_ejemplo.py` para generar un archivo de ejemplo.
+
 ## Base de Datos
 
 La aplicación crea automáticamente una base de datos SQLite (`lactalis.db`) con las siguientes tablas:
@@ -191,12 +213,14 @@ La aplicación crea automáticamente una base de datos SQLite (`lactalis.db`) co
 - Listar todos los productos
 - Buscar productos por código, descripción o grupo
 - Activar/desactivar productos
+- **Importar productos desde Excel**
 - Ver estadísticas (total, activos, inactivos)
 
 ### Pestaña 3: Terceros
 - Listar todos los terceros
 - Buscar terceros por código, nombre o NIT
 - Activar/desactivar terceros
+- **Importar terceros desde Excel**
 - Ver estadísticas (total, activos, inactivos)
 
 ### Pestaña 4: Información
