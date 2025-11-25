@@ -1,0 +1,295 @@
+"""Pestaña para procesar archivos Excel."""
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
+    QFileDialog, QTextEdit, QTableWidget, QTableWidgetItem,
+    QMessageBox, QProgressBar, QGroupBox, QSplitter
+)
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from lactalis_ventas.infrastructure.excel.excel_processor import ExcelProcessor
+from lactalis_ventas.application.use_cases.procesar_facturas import ProcesarFacturasUseCase
+
+
+class ProcessThread(QThread):
+    """Thread para procesar facturas en segundo plano."""
+
+    finished = pyqtSignal(object)  # Emite el resultado del procesamiento
+    error = pyqtSignal(str)  # Emite errores
+
+    def __init__(self, excel_processor, procesar_uc, archivo):
+        super().__init__()
+        self.excel_processor = excel_processor
+        self.procesar_uc = procesar_uc
+        self.archivo = archivo
+
+    def run(self):
+        """Ejecuta el procesamiento."""
+        try:
+            # Leer archivo Excel
+            lineas = self.excel_processor.procesar_archivo(self.archivo)
+
+            # Procesar facturas
+            resultado = self.procesar_uc.ejecutar(lineas)
+
+            self.finished.emit(resultado)
+        except Exception as e:
+            self.error.emit(str(e))
+
+
+class ProcesarExcelTab(QWidget):
+    """Pestaña para procesar archivos Excel."""
+
+    def __init__(self, excel_processor: ExcelProcessor, procesar_uc: ProcesarFacturasUseCase):
+        super().__init__()
+        self.excel_processor = excel_processor
+        self.procesar_uc = procesar_uc
+        self.archivo_seleccionado = None
+        self.process_thread = None
+
+        self._configurar_ui()
+
+    def _configurar_ui(self):
+        """Configura la interfaz de usuario."""
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
+
+        # Título
+        titulo = QLabel("Procesar Facturas desde Excel")
+        titulo.setStyleSheet("font-size: 18px; font-weight: bold; color: #2c3e50;")
+        layout.addWidget(titulo)
+
+        # Grupo de selección de archivo
+        grupo_archivo = QGroupBox("1. Seleccionar archivo Excel")
+        grupo_archivo.setStyleSheet("QGroupBox { font-weight: bold; }")
+        layout_archivo = QHBoxLayout()
+
+        self.label_archivo = QLabel("No se ha seleccionado ningún archivo")
+        self.label_archivo.setStyleSheet("color: #7f8c8d;")
+        layout_archivo.addWidget(self.label_archivo, 1)
+
+        self.btn_seleccionar = QPushButton("Seleccionar archivo")
+        self.btn_seleccionar.clicked.connect(self._seleccionar_archivo)
+        self.btn_seleccionar.setStyleSheet("""
+            QPushButton {
+                background-color: #3498db;
+                color: white;
+                padding: 8px 16px;
+                border: none;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #2980b9;
+            }
+        """)
+        layout_archivo.addWidget(self.btn_seleccionar)
+
+        grupo_archivo.setLayout(layout_archivo)
+        layout.addWidget(grupo_archivo)
+
+        # Grupo de procesamiento
+        grupo_procesar = QGroupBox("2. Procesar archivo")
+        grupo_procesar.setStyleSheet("QGroupBox { font-weight: bold; }")
+        layout_procesar = QVBoxLayout()
+
+        btn_layout = QHBoxLayout()
+        self.btn_procesar = QPushButton("Procesar facturas")
+        self.btn_procesar.clicked.connect(self._procesar_facturas)
+        self.btn_procesar.setEnabled(False)
+        self.btn_procesar.setStyleSheet("""
+            QPushButton {
+                background-color: #27ae60;
+                color: white;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 4px;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            QPushButton:hover:enabled {
+                background-color: #229954;
+            }
+            QPushButton:disabled {
+                background-color: #95a5a6;
+            }
+        """)
+        btn_layout.addWidget(self.btn_procesar)
+        btn_layout.addStretch()
+
+        layout_procesar.addLayout(btn_layout)
+
+        # Barra de progreso
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        self.progress_bar.setTextVisible(True)
+        self.progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 2px solid #bdc3c7;
+                border-radius: 5px;
+                text-align: center;
+            }
+            QProgressBar::chunk {
+                background-color: #3498db;
+            }
+        """)
+        layout_procesar.addWidget(self.progress_bar)
+
+        grupo_procesar.setLayout(layout_procesar)
+        layout.addWidget(grupo_procesar)
+
+        # Grupo de resultados
+        grupo_resultados = QGroupBox("3. Resultados")
+        grupo_resultados.setStyleSheet("QGroupBox { font-weight: bold; }")
+        layout_resultados = QVBoxLayout()
+
+        # Resumen
+        self.label_resumen = QLabel("")
+        self.label_resumen.setStyleSheet("font-size: 12px; padding: 10px; background-color: #ecf0f1; border-radius: 4px;")
+        layout_resultados.addWidget(self.label_resumen)
+
+        # Splitter para dividir registradas y rechazadas
+        splitter = QSplitter(Qt.Orientation.Vertical)
+
+        # Tabla de líneas registradas
+        grupo_registradas = QWidget()
+        layout_reg = QVBoxLayout(grupo_registradas)
+        layout_reg.setContentsMargins(0, 0, 0, 0)
+
+        label_reg = QLabel("Líneas registradas:")
+        label_reg.setStyleSheet("font-weight: bold; color: #27ae60;")
+        layout_reg.addWidget(label_reg)
+
+        self.tabla_registradas = QTableWidget()
+        self.tabla_registradas.setColumnCount(7)
+        self.tabla_registradas.setHorizontalHeaderLabels([
+            "Factura", "Fecha", "Tercero", "Producto", "Descripción", "Cantidad", "Valor Neto"
+        ])
+        self.tabla_registradas.horizontalHeader().setStretchLastSection(True)
+        layout_reg.addWidget(self.tabla_registradas)
+
+        splitter.addWidget(grupo_registradas)
+
+        # Tabla de líneas rechazadas
+        grupo_rechazadas = QWidget()
+        layout_rech = QVBoxLayout(grupo_rechazadas)
+        layout_rech.setContentsMargins(0, 0, 0, 0)
+
+        label_rech = QLabel("Líneas rechazadas:")
+        label_rech.setStyleSheet("font-weight: bold; color: #e74c3c;")
+        layout_rech.addWidget(label_rech)
+
+        self.tabla_rechazadas = QTableWidget()
+        self.tabla_rechazadas.setColumnCount(7)
+        self.tabla_rechazadas.setHorizontalHeaderLabels([
+            "Factura", "Tercero", "Producto", "Descripción", "Valor Neto", "Motivo", ""
+        ])
+        self.tabla_rechazadas.horizontalHeader().setStretchLastSection(True)
+        layout_rech.addWidget(self.tabla_rechazadas)
+
+        splitter.addWidget(grupo_rechazadas)
+
+        layout_resultados.addWidget(splitter)
+
+        grupo_resultados.setLayout(layout_resultados)
+        layout.addWidget(grupo_resultados, 1)
+
+    def _seleccionar_archivo(self):
+        """Abre el diálogo para seleccionar un archivo Excel."""
+        archivo, _ = QFileDialog.getOpenFileName(
+            self,
+            "Seleccionar archivo Excel",
+            "",
+            "Archivos Excel (*.xlsx *.xls)"
+        )
+
+        if archivo:
+            self.archivo_seleccionado = archivo
+            self.label_archivo.setText(f"Archivo: {archivo}")
+            self.label_archivo.setStyleSheet("color: #27ae60;")
+            self.btn_procesar.setEnabled(True)
+
+    def _procesar_facturas(self):
+        """Procesa las facturas del archivo Excel."""
+        if not self.archivo_seleccionado:
+            QMessageBox.warning(self, "Advertencia", "Debe seleccionar un archivo Excel")
+            return
+
+        # Deshabilitar botones
+        self.btn_procesar.setEnabled(False)
+        self.btn_seleccionar.setEnabled(False)
+
+        # Mostrar barra de progreso
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setRange(0, 0)  # Modo indeterminado
+
+        # Limpiar resultados anteriores
+        self.label_resumen.setText("Procesando...")
+        self.tabla_registradas.setRowCount(0)
+        self.tabla_rechazadas.setRowCount(0)
+
+        # Crear y ejecutar thread
+        self.process_thread = ProcessThread(
+            self.excel_processor,
+            self.procesar_uc,
+            self.archivo_seleccionado
+        )
+        self.process_thread.finished.connect(self._on_proceso_completado)
+        self.process_thread.error.connect(self._on_proceso_error)
+        self.process_thread.start()
+
+    def _on_proceso_completado(self, resultado):
+        """Manejador de proceso completado."""
+        # Ocultar barra de progreso
+        self.progress_bar.setVisible(False)
+
+        # Habilitar botones
+        self.btn_procesar.setEnabled(True)
+        self.btn_seleccionar.setEnabled(True)
+
+        # Mostrar resumen
+        self.label_resumen.setText(resultado.obtener_resumen())
+
+        # Llenar tabla de registradas
+        self.tabla_registradas.setRowCount(len(resultado.lineas_registradas))
+        for i, linea in enumerate(resultado.lineas_registradas):
+            self.tabla_registradas.setItem(i, 0, QTableWidgetItem(linea.numero_factura))
+            self.tabla_registradas.setItem(i, 1, QTableWidgetItem(linea.fecha.strftime("%Y-%m-%d")))
+            self.tabla_registradas.setItem(i, 2, QTableWidgetItem(linea.nombre_tercero))
+            self.tabla_registradas.setItem(i, 3, QTableWidgetItem(linea.codigo_producto))
+            self.tabla_registradas.setItem(i, 4, QTableWidgetItem(linea.descripcion_producto))
+            self.tabla_registradas.setItem(i, 5, QTableWidgetItem(str(linea.cantidad)))
+            self.tabla_registradas.setItem(i, 6, QTableWidgetItem(f"${linea.valor_neto:,.2f}"))
+
+        # Llenar tabla de rechazadas
+        self.tabla_rechazadas.setRowCount(len(resultado.lineas_rechazadas_detalle))
+        for i, linea in enumerate(resultado.lineas_rechazadas_detalle):
+            self.tabla_rechazadas.setItem(i, 0, QTableWidgetItem(linea.numero_factura))
+            self.tabla_rechazadas.setItem(i, 1, QTableWidgetItem(linea.nombre_tercero))
+            self.tabla_rechazadas.setItem(i, 2, QTableWidgetItem(linea.codigo_producto))
+            self.tabla_rechazadas.setItem(i, 3, QTableWidgetItem(linea.descripcion_producto))
+            self.tabla_rechazadas.setItem(i, 4, QTableWidgetItem(f"${linea.valor_neto:,.2f}"))
+            self.tabla_rechazadas.setItem(i, 5, QTableWidgetItem(linea.motivo_rechazo or ""))
+
+        # Mostrar mensaje de éxito
+        QMessageBox.information(
+            self,
+            "Procesamiento completado",
+            f"Se procesaron {resultado.lineas_procesadas} líneas correctamente.\n"
+            f"Se rechazaron {resultado.lineas_rechazadas} líneas."
+        )
+
+    def _on_proceso_error(self, error):
+        """Manejador de errores en el proceso."""
+        # Ocultar barra de progreso
+        self.progress_bar.setVisible(False)
+
+        # Habilitar botones
+        self.btn_procesar.setEnabled(True)
+        self.btn_seleccionar.setEnabled(True)
+
+        # Mostrar error
+        QMessageBox.critical(
+            self,
+            "Error al procesar",
+            f"Ocurrió un error al procesar el archivo:\n\n{error}"
+        )
