@@ -42,13 +42,10 @@ class ExcelProcessor:
             # Leer el archivo Excel
             df = pd.read_excel(ruta_archivo)
 
-            # Normalizar nombres de columnas
-            df.columns = [col.strip().lower() for col in df.columns]
+            # Solo eliminar espacios en blanco, mantener mayúsculas y minúsculas originales
+            df.columns = [col.strip() for col in df.columns]
 
-            # Eliminar duplicados en nombres de columnas añadiendo sufijos
-            df.columns = self._deduplicar_columnas(df.columns)
-
-            # Mapear columnas
+            # Mapear columnas (la comparación se hace case-insensitive dentro del método)
             columnas_mapeadas = self._mapear_columnas(df.columns)
 
             # Validar que existan las columnas requeridas (excepto anulada, nit y clase_factura que son opcionales)
@@ -97,22 +94,6 @@ class ExcelProcessor:
         except Exception as e:
             raise Exception(f"Error al procesar archivo Excel: {str(e)}")
 
-    def _deduplicar_columnas(self, columnas: List[str]) -> List[str]:
-        """Elimina duplicados en nombres de columnas añadiendo sufijos numéricos."""
-        columnas_vistas = {}
-        columnas_deduplicadas = []
-
-        for col in columnas:
-            if col not in columnas_vistas:
-                columnas_vistas[col] = 0
-                columnas_deduplicadas.append(col)
-            else:
-                columnas_vistas[col] += 1
-                nuevo_nombre = f"{col}_{columnas_vistas[col]}"
-                columnas_deduplicadas.append(nuevo_nombre)
-
-        return columnas_deduplicadas
-
     def _mapear_columnas(self, columnas_df: List[str]) -> dict:
         """Mapea las columnas del DataFrame a las columnas esperadas."""
         mapeo = {}
@@ -147,7 +128,7 @@ class ExcelProcessor:
             elif isinstance(fecha_raw, datetime):
                 fecha = fecha_raw
             else:
-                fecha = pd.to_datetime(fecha_raw).to_pydatetime()
+                fecha = pd.to_datetime(fecha_raw, format='%d.%m.%Y', dayfirst=True).to_pydatetime()
 
             # Procesar anulada
             anulada_raw = row[columnas_mapeadas["anulada"]]
