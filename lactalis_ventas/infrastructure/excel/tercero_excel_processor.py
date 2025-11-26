@@ -108,7 +108,14 @@ class TerceroExcelProcessor:
             se_registra = bool(int(se_registra_raw))
         elif isinstance(se_registra_raw, str):
             se_registra_lower = se_registra_raw.lower().strip()
-            se_registra = se_registra_lower in ["true", "1", "si", "sí", "yes", "activo"]
+            # Reconocer "NIT" como True y "NO NIT" como False
+            if "no nit" in se_registra_lower or "no_nit" in se_registra_lower:
+                se_registra = False
+            elif "nit" in se_registra_lower:
+                se_registra = True
+            else:
+                # Otros valores comunes
+                se_registra = se_registra_lower in ["true", "1", "si", "sí", "yes", "activo"]
         else:
             se_registra = True
 

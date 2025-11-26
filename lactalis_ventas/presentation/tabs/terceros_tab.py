@@ -353,31 +353,42 @@ class TercerosTab(QWidget):
             progress.set_message("Importando terceros a la base de datos...")
             QApplication.processEvents()
 
-            # Importar terceros uno por uno para actualizar progreso
+            # Importar terceros con optimización para grandes volúmenes
             from lactalis_ventas.application.use_cases.importar_terceros import ResultadoImportacionTerceros
             resultado = ResultadoImportacionTerceros(total_leidos=len(terceros))
 
-            for i, tercero in enumerate(terceros):
-                try:
-                    # Verificar si el tercero ya existe
-                    tercero_existente = self.importar_uc.tercero_repo.obtener_por_cod_padre(tercero.cod_padre)
+            # Calcular intervalo de actualización (cada 100 registros o 1% del total)
+            update_interval = max(100, len(terceros) // 100) if len(terceros) > 1000 else 10
 
-                    if tercero_existente:
-                        if actualizar_existentes:
-                            self.importar_uc.tercero_repo.actualizar(tercero)
-                            resultado.terceros_actualizados += 1
+            # Procesar en lotes para mejor rendimiento
+            batch_size = 500
+            for batch_start in range(0, len(terceros), batch_size):
+                batch_end = min(batch_start + batch_size, len(terceros))
+                batch = terceros[batch_start:batch_end]
+
+                for i, tercero in enumerate(batch):
+                    try:
+                        # Verificar si el tercero ya existe
+                        tercero_existente = self.importar_uc.tercero_repo.obtener_por_cod_padre(tercero.cod_padre)
+
+                        if tercero_existente:
+                            if actualizar_existentes:
+                                self.importar_uc.tercero_repo.actualizar(tercero)
+                                resultado.terceros_actualizados += 1
+                            else:
+                                resultado.terceros_ignorados += 1
                         else:
-                            resultado.terceros_ignorados += 1
-                    else:
-                        self.importar_uc.tercero_repo.guardar(tercero)
-                        resultado.terceros_nuevos += 1
+                            self.importar_uc.tercero_repo.guardar(tercero)
+                            resultado.terceros_nuevos += 1
 
-                    # Actualizar progreso
-                    progress.set_value(i + 1)
-                    QApplication.processEvents()
+                        # Actualizar progreso solo en intervalos
+                        actual_index = batch_start + i + 1
+                        if actual_index % update_interval == 0 or actual_index == len(terceros):
+                            progress.set_value(actual_index)
+                            QApplication.processEvents()
 
-                except Exception as e:
-                    resultado.errores.append(f"Error con tercero {tercero.cod_padre}: {str(e)}")
+                    except Exception as e:
+                        resultado.errores.append(f"Error con tercero {tercero.cod_padre}: {str(e)}")
 
             # Marcar como completado
             progress.set_completed()

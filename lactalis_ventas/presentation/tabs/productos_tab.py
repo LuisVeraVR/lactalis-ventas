@@ -353,31 +353,42 @@ class ProductosTab(QWidget):
             progress.set_message("Importando productos a la base de datos...")
             QApplication.processEvents()
 
-            # Importar productos uno por uno para actualizar progreso
+            # Importar productos con optimización para grandes volúmenes
             from lactalis_ventas.application.use_cases.importar_productos import ResultadoImportacionProductos
             resultado = ResultadoImportacionProductos(total_leidos=len(productos))
 
-            for i, producto in enumerate(productos):
-                try:
-                    # Verificar si el producto ya existe
-                    producto_existente = self.importar_uc.producto_repo.obtener_por_codigo(producto.codigo)
+            # Calcular intervalo de actualización (cada 100 registros o 1% del total)
+            update_interval = max(100, len(productos) // 100) if len(productos) > 1000 else 10
 
-                    if producto_existente:
-                        if actualizar_existentes:
-                            self.importar_uc.producto_repo.actualizar(producto)
-                            resultado.productos_actualizados += 1
+            # Procesar en lotes para mejor rendimiento
+            batch_size = 500
+            for batch_start in range(0, len(productos), batch_size):
+                batch_end = min(batch_start + batch_size, len(productos))
+                batch = productos[batch_start:batch_end]
+
+                for i, producto in enumerate(batch):
+                    try:
+                        # Verificar si el producto ya existe
+                        producto_existente = self.importar_uc.producto_repo.obtener_por_codigo(producto.codigo)
+
+                        if producto_existente:
+                            if actualizar_existentes:
+                                self.importar_uc.producto_repo.actualizar(producto)
+                                resultado.productos_actualizados += 1
+                            else:
+                                resultado.productos_ignorados += 1
                         else:
-                            resultado.productos_ignorados += 1
-                    else:
-                        self.importar_uc.producto_repo.guardar(producto)
-                        resultado.productos_nuevos += 1
+                            self.importar_uc.producto_repo.guardar(producto)
+                            resultado.productos_nuevos += 1
 
-                    # Actualizar progreso
-                    progress.set_value(i + 1)
-                    QApplication.processEvents()
+                        # Actualizar progreso solo en intervalos
+                        actual_index = batch_start + i + 1
+                        if actual_index % update_interval == 0 or actual_index == len(productos):
+                            progress.set_value(actual_index)
+                            QApplication.processEvents()
 
-                except Exception as e:
-                    resultado.errores.append(f"Error con producto {producto.codigo}: {str(e)}")
+                    except Exception as e:
+                        resultado.errores.append(f"Error con producto {producto.codigo}: {str(e)}")
 
             # Marcar como completado
             progress.set_completed()
