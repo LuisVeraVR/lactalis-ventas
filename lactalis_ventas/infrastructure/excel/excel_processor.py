@@ -18,7 +18,7 @@ class ExcelProcessor:
         "cod_padre": ["cód.padre", "cod.padre", "código padre", "codigo padre", "cod_padre", "codigo_padre"],
         "nombre_tercero": ["nombre código padre", "nombre codigo padre", "nombre_tercero", "tercero", "cliente", "nombre cliente"],
         "nit": ["nit", "identificación", "identificacion"],
-        "codigo_producto": ["nºmat", "n°mat", "numeromat", "numero mat", "codigo_producto", "código producto", "cod_producto"],
+        "codigo_producto": ["Material", "material", "nºmat", "n°mat", "numeromat", "numero mat", "codigo_producto", "código producto", "cod_producto"],  # Material primero (número entero)
         "descripcion_producto": ["descripción del material", "descripcion del material", "descripcion_producto", "descripción producto", "producto", "descripcion"],
         "grupo_producto": ["gr.mater.2", "gr mater.2", "grupo_producto", "grupo", "categoría", "categoria", "gr.mater.4"],
         "cantidad": ["cant. pza", "cantidad", "qty", "unidades", "cant.pza", "ctd.fact."],
