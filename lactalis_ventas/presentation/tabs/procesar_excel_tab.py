@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from lactalis_ventas.infrastructure.excel.excel_processor import ExcelProcessor
 from lactalis_ventas.application.use_cases.procesar_facturas import ProcesarFacturasUseCase
+from lactalis_ventas.presentation.widgets.progress_dialog import ProgressDialog
 
 
 class ProcessThread(QThread):
@@ -14,6 +15,7 @@ class ProcessThread(QThread):
 
     finished = pyqtSignal(object)  # Emite el resultado del procesamiento
     error = pyqtSignal(str)  # Emite errores
+    progress = pyqtSignal(int, int, str)  # Emite progreso (actual, total, mensaje)
 
     def __init__(self, excel_processor, procesar_uc, archivo):
         super().__init__()
@@ -25,9 +27,44 @@ class ProcessThread(QThread):
         """Ejecuta el procesamiento."""
         try:
             # Leer archivo Excel
+            self.progress.emit(0, 0, "Leyendo archivo Excel...")
             lineas = self.excel_processor.procesar_archivo(self.archivo)
 
-            # Procesar facturas
+            # Emitir total de líneas
+            total = len(lineas)
+            self.progress.emit(0, total, f"Procesando {total} líneas de facturas...")
+
+            # Procesar facturas línea por línea para emitir progreso
+            from lactalis_ventas.domain.value_objects.resultado_procesamiento import ResultadoProcesamiento
+            resultado = ResultadoProcesamiento(total_lineas=total)
+
+            for i, linea in enumerate(lineas):
+                try:
+                    # Emitir progreso
+                    if i % 10 == 0:  # Cada 10 líneas para no saturar
+                        self.progress.emit(i, total, f"Procesando línea {i+1} de {total}...")
+
+                    # Aplicar las mismas reglas que en el caso de uso
+                    if not linea.numero_factura.startswith("Factura"):
+                        linea.marcar_como_rechazada("Factura no empieza con 'Factura'")
+                        resultado.agregar_linea_rechazada(linea)
+                        continue
+
+                    if linea.valor_neto <= 0:
+                        linea.marcar_como_rechazada(f"Valor neto inválido: {linea.valor_neto}")
+                        resultado.agregar_linea_rechazada(linea)
+                        continue
+
+                    # Aquí simplificamos ya que el proceso completo está en el caso de uso
+                    # Solo emitimos progreso y dejamos que el caso de uso procese
+                    linea.marcar_como_registrada()
+                    resultado.agregar_linea_registrada(linea)
+
+                except Exception as e:
+                    resultado.agregar_error(str(e))
+
+            # Ahora ejecutar el caso de uso completo con todas las validaciones
+            self.progress.emit(total, total, "Aplicando reglas de negocio...")
             resultado = self.procesar_uc.ejecutar(lineas)
 
             self.finished.emit(resultado)
@@ -218,14 +255,21 @@ class ProcesarExcelTab(QWidget):
         self.btn_procesar.setEnabled(False)
         self.btn_seleccionar.setEnabled(False)
 
-        # Mostrar barra de progreso
-        self.progress_bar.setVisible(True)
-        self.progress_bar.setRange(0, 0)  # Modo indeterminado
+        # Ocultar barra de progreso anterior
+        self.progress_bar.setVisible(False)
 
         # Limpiar resultados anteriores
         self.label_resumen.setText("Procesando...")
         self.tabla_registradas.setRowCount(0)
         self.tabla_rechazadas.setRowCount(0)
+
+        # Crear diálogo de progreso
+        self.progress_dialog = ProgressDialog(
+            self,
+            "Procesando facturas",
+            "Iniciando procesamiento..."
+        )
+        self.progress_dialog.show()
 
         # Crear y ejecutar thread
         self.process_thread = ProcessThread(
@@ -235,12 +279,23 @@ class ProcesarExcelTab(QWidget):
         )
         self.process_thread.finished.connect(self._on_proceso_completado)
         self.process_thread.error.connect(self._on_proceso_error)
+        self.process_thread.progress.connect(self._on_progreso_actualizado)
         self.process_thread.start()
+
+    def _on_progreso_actualizado(self, actual: int, total: int, mensaje: str):
+        """Actualiza el progreso del procesamiento."""
+        if total > 0:
+            if self.progress_dialog.total_items == 0:
+                self.progress_dialog.set_total(total)
+            self.progress_dialog.set_value(actual)
+            self.progress_dialog.set_message(mensaje)
 
     def _on_proceso_completado(self, resultado):
         """Manejador de proceso completado."""
-        # Ocultar barra de progreso
-        self.progress_bar.setVisible(False)
+        # Marcar progreso como completado y cerrar diálogo
+        if hasattr(self, 'progress_dialog'):
+            self.progress_dialog.set_completed()
+            self.progress_dialog.close()
 
         # Habilitar botones
         self.btn_procesar.setEnabled(True)
@@ -280,8 +335,9 @@ class ProcesarExcelTab(QWidget):
 
     def _on_proceso_error(self, error):
         """Manejador de errores en el proceso."""
-        # Ocultar barra de progreso
-        self.progress_bar.setVisible(False)
+        # Cerrar diálogo de progreso
+        if hasattr(self, 'progress_dialog'):
+            self.progress_dialog.close()
 
         # Habilitar botones
         self.btn_procesar.setEnabled(True)

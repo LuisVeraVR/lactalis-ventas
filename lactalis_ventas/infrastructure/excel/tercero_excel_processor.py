@@ -9,10 +9,10 @@ class TerceroExcelProcessor:
 
     # Columnas esperadas en el Excel
     COLUMNAS_ESPERADAS = {
-        "cod_padre": ["cod_padre", "código padre", "codigo_padre", "codigo", "código", "code"],
+        "cod_padre": ["cod_padre", "código padre", "codigo_padre", "nombre código padre", "nombre codigo padre", "codigo", "código", "code"],
         "nombre": ["nombre", "razon_social", "razón social", "cliente", "tercero", "name"],
         "nit": ["nit", "identificación", "identificacion", "documento", "ruc", "id"],
-        "se_registra": ["se_registra", "activo", "estado", "active"]
+        "se_registra": ["se_registra", "se registra", "activo", "estado", "active"]
     }
 
     def procesar_archivo(self, ruta_archivo: str) -> List[Tercero]:

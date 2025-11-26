@@ -2,7 +2,7 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QLineEdit, QTableWidget, QTableWidgetItem, QMessageBox,
-    QHeaderView, QCheckBox, QGroupBox, QFileDialog
+    QHeaderView, QCheckBox, QGroupBox, QFileDialog, QApplication
 )
 from PyQt6.QtCore import Qt
 from lactalis_ventas.application.use_cases.gestionar_productos import (
@@ -10,6 +10,7 @@ from lactalis_ventas.application.use_cases.gestionar_productos import (
 )
 from lactalis_ventas.application.use_cases.importar_productos import ImportarProductosUseCase
 from lactalis_ventas.infrastructure.excel.producto_excel_processor import ProductoExcelProcessor
+from lactalis_ventas.presentation.widgets.progress_dialog import ProgressDialog
 
 
 class ProductosTab(QWidget):
@@ -325,11 +326,21 @@ class ProductosTab(QWidget):
         )
         actualizar_existentes = respuesta == QMessageBox.StandardButton.Yes
 
+        # Crear diálogo de progreso
+        progress = ProgressDialog(
+            self,
+            "Importando productos",
+            "Leyendo archivo Excel..."
+        )
+        progress.show()
+        QApplication.processEvents()
+
         try:
             # Procesar archivo Excel
             productos = self.excel_processor.procesar_archivo(archivo)
 
             if not productos:
+                progress.close()
                 QMessageBox.warning(
                     self,
                     "Sin datos",
@@ -337,8 +348,43 @@ class ProductosTab(QWidget):
                 )
                 return
 
-            # Importar productos
-            resultado = self.importar_uc.ejecutar(productos, actualizar_existentes)
+            # Configurar progreso
+            progress.set_total(len(productos))
+            progress.set_message("Importando productos a la base de datos...")
+            QApplication.processEvents()
+
+            # Importar productos uno por uno para actualizar progreso
+            from lactalis_ventas.application.use_cases.importar_productos import ResultadoImportacionProductos
+            resultado = ResultadoImportacionProductos(total_leidos=len(productos))
+
+            for i, producto in enumerate(productos):
+                try:
+                    # Verificar si el producto ya existe
+                    producto_existente = self.importar_uc.producto_repo.obtener_por_codigo(producto.codigo)
+
+                    if producto_existente:
+                        if actualizar_existentes:
+                            self.importar_uc.producto_repo.actualizar(producto)
+                            resultado.productos_actualizados += 1
+                        else:
+                            resultado.productos_ignorados += 1
+                    else:
+                        self.importar_uc.producto_repo.guardar(producto)
+                        resultado.productos_nuevos += 1
+
+                    # Actualizar progreso
+                    progress.set_value(i + 1)
+                    QApplication.processEvents()
+
+                except Exception as e:
+                    resultado.errores.append(f"Error con producto {producto.codigo}: {str(e)}")
+
+            # Marcar como completado
+            progress.set_completed()
+            QApplication.processEvents()
+
+            # Cerrar diálogo de progreso
+            progress.close()
 
             # Refrescar tabla
             self.refrescar()
@@ -365,6 +411,7 @@ class ProductosTab(QWidget):
             )
 
         except Exception as e:
+            progress.close()
             QMessageBox.critical(
                 self,
                 "Error al importar",

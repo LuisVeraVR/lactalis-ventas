@@ -2,7 +2,7 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QLineEdit, QTableWidget, QTableWidgetItem, QMessageBox,
-    QHeaderView, QGroupBox, QFileDialog
+    QHeaderView, QGroupBox, QFileDialog, QApplication
 )
 from PyQt6.QtCore import Qt
 from lactalis_ventas.application.use_cases.gestionar_terceros import (
@@ -10,6 +10,7 @@ from lactalis_ventas.application.use_cases.gestionar_terceros import (
 )
 from lactalis_ventas.application.use_cases.importar_terceros import ImportarTercerosUseCase
 from lactalis_ventas.infrastructure.excel.tercero_excel_processor import TerceroExcelProcessor
+from lactalis_ventas.presentation.widgets.progress_dialog import ProgressDialog
 
 
 class TercerosTab(QWidget):
@@ -325,11 +326,21 @@ class TercerosTab(QWidget):
         )
         actualizar_existentes = respuesta == QMessageBox.StandardButton.Yes
 
+        # Crear diálogo de progreso
+        progress = ProgressDialog(
+            self,
+            "Importando terceros",
+            "Leyendo archivo Excel..."
+        )
+        progress.show()
+        QApplication.processEvents()
+
         try:
             # Procesar archivo Excel
             terceros = self.excel_processor.procesar_archivo(archivo)
 
             if not terceros:
+                progress.close()
                 QMessageBox.warning(
                     self,
                     "Sin datos",
@@ -337,8 +348,43 @@ class TercerosTab(QWidget):
                 )
                 return
 
-            # Importar terceros
-            resultado = self.importar_uc.ejecutar(terceros, actualizar_existentes)
+            # Configurar progreso
+            progress.set_total(len(terceros))
+            progress.set_message("Importando terceros a la base de datos...")
+            QApplication.processEvents()
+
+            # Importar terceros uno por uno para actualizar progreso
+            from lactalis_ventas.application.use_cases.importar_terceros import ResultadoImportacionTerceros
+            resultado = ResultadoImportacionTerceros(total_leidos=len(terceros))
+
+            for i, tercero in enumerate(terceros):
+                try:
+                    # Verificar si el tercero ya existe
+                    tercero_existente = self.importar_uc.tercero_repo.obtener_por_cod_padre(tercero.cod_padre)
+
+                    if tercero_existente:
+                        if actualizar_existentes:
+                            self.importar_uc.tercero_repo.actualizar(tercero)
+                            resultado.terceros_actualizados += 1
+                        else:
+                            resultado.terceros_ignorados += 1
+                    else:
+                        self.importar_uc.tercero_repo.guardar(tercero)
+                        resultado.terceros_nuevos += 1
+
+                    # Actualizar progreso
+                    progress.set_value(i + 1)
+                    QApplication.processEvents()
+
+                except Exception as e:
+                    resultado.errores.append(f"Error con tercero {tercero.cod_padre}: {str(e)}")
+
+            # Marcar como completado
+            progress.set_completed()
+            QApplication.processEvents()
+
+            # Cerrar diálogo de progreso
+            progress.close()
 
             # Refrescar tabla
             self.refrescar()
@@ -365,6 +411,7 @@ class TercerosTab(QWidget):
             )
 
         except Exception as e:
+            progress.close()
             QMessageBox.critical(
                 self,
                 "Error al importar",
