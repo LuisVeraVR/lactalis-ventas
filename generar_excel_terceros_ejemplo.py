@@ -5,97 +5,97 @@ import pandas as pd
 def generar_excel_terceros():
     """Genera un archivo Excel de ejemplo con terceros."""
 
-    # Datos de ejemplo
+    # Datos de ejemplo - Formato: V, Nombre Código Padre, NIT, Se Registra
     datos = [
         {
-            "cod_padre": "T001",
-            "nombre": "Supermercado La Canasta",
-            "nit": "900123456-1",
-            "activo": True
+            "V": 1,
+            "Nombre Código Padre": "T001",
+            "NIT": "900123456-1",
+            "Se Registra": True
         },
         {
-            "cod_padre": "T002",
-            "nombre": "Tienda El Ahorro",
-            "nit": "800234567-2",
-            "activo": True
+            "V": 2,
+            "Nombre Código Padre": "T002",
+            "NIT": "800234567-2",
+            "Se Registra": True
         },
         {
-            "cod_padre": "T003",
-            "nombre": "Distribuidora Los Andes",
-            "nit": "700345678-3",
-            "activo": True
+            "V": 3,
+            "Nombre Código Padre": "T003",
+            "NIT": "700345678-3",
+            "Se Registra": True
         },
         {
-            "cod_padre": "T004",
-            "nombre": "Café Gourmet del Centro",
-            "nit": "600456789-4",
-            "activo": True
+            "V": 4,
+            "Nombre Código Padre": "T004",
+            "NIT": "600456789-4",
+            "Se Registra": True
         },
         {
-            "cod_padre": "T005",
-            "nombre": "Supermercado El Éxito",
-            "nit": "890123456-5",
-            "activo": True
+            "V": 5,
+            "Nombre Código Padre": "T005",
+            "NIT": "890123456-5",
+            "Se Registra": True
         },
         {
-            "cod_padre": "T006",
-            "nombre": "Carrefour Colombia",
-            "nit": "890234567-6",
-            "activo": True
+            "V": 6,
+            "Nombre Código Padre": "T006",
+            "NIT": "890234567-6",
+            "Se Registra": True
         },
         {
-            "cod_padre": "T007",
-            "nombre": "Tiendas Ara",
-            "nit": "890345678-7",
-            "activo": True
+            "V": 7,
+            "Nombre Código Padre": "T007",
+            "NIT": "890345678-7",
+            "Se Registra": True
         },
         {
-            "cod_padre": "T008",
-            "nombre": "Olímpica S.A.",
-            "nit": "890456789-8",
-            "activo": True
+            "V": 8,
+            "Nombre Código Padre": "T008",
+            "NIT": "890456789-8",
+            "Se Registra": True
         },
         {
-            "cod_padre": "T009",
-            "nombre": "D1 Tiendas",
-            "nit": "890567890-9",
-            "activo": True
+            "V": 9,
+            "Nombre Código Padre": "T009",
+            "NIT": "890567890-9",
+            "Se Registra": True
         },
         {
-            "cod_padre": "T010",
-            "nombre": "Justo & Bueno",
-            "nit": "890678901-0",
-            "activo": True
+            "V": 10,
+            "Nombre Código Padre": "T010",
+            "NIT": "890678901-0",
+            "Se Registra": True
         },
         {
-            "cod_padre": "T011",
-            "nombre": "Distribuidora del Valle (Inactivo)",
-            "nit": "800789012-1",
-            "activo": False  # Este tercero está desactivado
+            "V": 11,
+            "Nombre Código Padre": "T011",
+            "NIT": "800789012-1",
+            "Se Registra": False  # Este tercero está desactivado
         },
         {
-            "cod_padre": "T012",
-            "nombre": "Makro S.A.",
-            "nit": "890890123-2",
-            "activo": True
+            "V": 12,
+            "Nombre Código Padre": "T012",
+            "NIT": "890890123-2",
+            "Se Registra": True
         },
         {
-            "cod_padre": "T013",
-            "nombre": "PriceSmart Colombia",
-            "nit": "890901234-3",
-            "activo": True
+            "V": 13,
+            "Nombre Código Padre": "T013",
+            "NIT": "890901234-3",
+            "Se Registra": True
         },
         {
-            "cod_padre": "T014",
-            "nombre": "Tiendas Jumbo",
-            "nit": "890012345-4",
-            "activo": True
+            "V": 14,
+            "Nombre Código Padre": "T014",
+            "NIT": "890012345-4",
+            "Se Registra": True
         },
         {
-            "cod_padre": "T015",
-            "nombre": "Metro Cali",
-            "nit": "800123456-5",
-            "activo": True
+            "V": 15,
+            "Nombre Código Padre": "T015",
+            "NIT": "800123456-5",
+            "Se Registra": True
         },
     ]
 
@@ -109,8 +109,13 @@ def generar_excel_terceros():
     print(f"Archivo generado exitosamente: {archivo}")
     print(f"\nEstadísticas del archivo:")
     print(f"- Total de terceros: {len(datos)}")
-    print(f"- Terceros activos: {sum(1 for t in datos if t['activo'])}")
-    print(f"- Terceros inactivos: {sum(1 for t in datos if not t['activo'])}")
+    print(f"- Terceros activos: {sum(1 for t in datos if t['Se Registra'])}")
+    print(f"- Terceros inactivos: {sum(1 for t in datos if not t['Se Registra'])}")
+    print(f"\nFormato de columnas:")
+    print(f"- V: Identificador numérico")
+    print(f"- Nombre Código Padre: Código del tercero")
+    print(f"- NIT: Número de identificación tributaria")
+    print(f"- Se Registra: Estado (True/False)")
     print(f"\nPuede usar este archivo para importar terceros a la aplicación.")
 
 

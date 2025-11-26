@@ -9,9 +9,10 @@ class TerceroExcelProcessor:
 
     # Columnas esperadas en el Excel
     COLUMNAS_ESPERADAS = {
-        "cod_padre": ["cod_padre", "código padre", "codigo_padre", "nombre código padre", "nombre codigo padre", "codigo", "código", "code"],
+        "id": ["v", "id", "#", "número", "numero"],  # Columna V como ID (opcional)
+        "cod_padre": ["nombre código padre", "nombre codigo padre", "cod_padre", "código padre", "codigo_padre", "codigo", "código", "code"],
         "nombre": ["nombre", "razon_social", "razón social", "cliente", "tercero", "name"],
-        "nit": ["nit", "identificación", "identificacion", "documento", "ruc", "id"],
+        "nit": ["nit", "identificación", "identificacion", "documento", "ruc"],
         "se_registra": ["se_registra", "se registra", "activo", "estado", "active"]
     }
 
@@ -40,11 +41,13 @@ class TerceroExcelProcessor:
 
             # Validar que existan las columnas requeridas
             if "cod_padre" not in columnas_mapeadas:
-                raise ValueError("El Excel debe contener una columna de 'código padre' o 'codigo'")
-            if "nombre" not in columnas_mapeadas:
-                raise ValueError("El Excel debe contener una columna de 'nombre'")
+                raise ValueError("El Excel debe contener una columna de 'Nombre Código Padre' o 'codigo'")
             if "nit" not in columnas_mapeadas:
                 raise ValueError("El Excel debe contener una columna de 'NIT'")
+
+            # Si no hay columna nombre, usar cod_padre como nombre
+            if "nombre" not in columnas_mapeadas:
+                columnas_mapeadas["nombre"] = columnas_mapeadas["cod_padre"]
 
             # Si no hay columna se_registra, usar True por defecto
             if "se_registra" not in columnas_mapeadas:
