@@ -1,10 +1,11 @@
-"""Pestaña para gestionar terceros."""
+"""Pestana para gestionar terceros."""
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QLineEdit, QTableWidget, QTableWidgetItem, QMessageBox,
-    QHeaderView, QGroupBox, QFileDialog, QApplication
+    QLineEdit, QTableView, QMessageBox, QHeaderView, QGroupBox,
+    QFileDialog, QApplication, QAbstractItemView
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QAbstractTableModel, QModelIndex
+from PyQt6.QtGui import QColor
 from lactalis_ventas.application.use_cases.gestionar_terceros import (
     ListarTercerosUseCase, BuscarTercerosUseCase, CambiarEstadoTerceroUseCase
 )
@@ -13,8 +14,67 @@ from lactalis_ventas.infrastructure.excel.tercero_excel_processor import Tercero
 from lactalis_ventas.presentation.widgets.progress_dialog import ProgressDialog
 
 
+class TerceroTableModel(QAbstractTableModel):
+    """Modelo liviano para mostrar terceros sin crear miles de widgets."""
+
+    HEADERS = ["Codigo Padre", "Nombre", "NIT", "Estado", "Accion"]
+
+    def __init__(self, terceros):
+        super().__init__()
+        self._terceros = terceros
+
+    def rowCount(self, parent=QModelIndex()):  # type: ignore[override]
+        return len(self._terceros)
+
+    def columnCount(self, parent=QModelIndex()):  # type: ignore[override]
+        return len(self.HEADERS)
+
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):  # type: ignore[override]
+        if not index.isValid() or not (0 <= index.row() < len(self._terceros)):
+            return None
+
+        tercero = self._terceros[index.row()]
+        col = index.column()
+
+        if role == Qt.ItemDataRole.DisplayRole:
+            if col == 0:
+                return tercero.cod_padre
+            if col == 1:
+                return tercero.nombre
+            if col == 2:
+                return tercero.nit
+            if col == 3:
+                return "Activo" if tercero.se_registra else "Inactivo"
+            if col == 4:
+                return "Desactivar" if tercero.se_registra else "Activar"
+
+        if role == Qt.ItemDataRole.ForegroundRole and col == 3:
+            return QColor("darkgreen") if tercero.se_registra else QColor("red")
+
+        if role == Qt.ItemDataRole.TextAlignmentRole and col in (0, 2, 3, 4):
+            return Qt.AlignmentFlag.AlignCenter
+
+        return None
+
+    def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):  # type: ignore[override]
+        if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
+            return self.HEADERS[section]
+        return super().headerData(section, orientation, role)
+
+    def set_terceros(self, terceros):
+        """Reemplaza los datos de manera eficiente."""
+        self.beginResetModel()
+        self._terceros = terceros
+        self.endResetModel()
+
+    def tercero_en_fila(self, row: int):
+        if 0 <= row < len(self._terceros):
+            return self._terceros[row]
+        return None
+
+
 class TercerosTab(QWidget):
-    """Pestaña para gestionar terceros."""
+    """Pestana para gestionar terceros."""
 
     def __init__(
         self,
@@ -40,18 +100,18 @@ class TercerosTab(QWidget):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
 
-        # Título
-        titulo = QLabel("Gestión de Terceros")
+        # Titulo
+        titulo = QLabel("Gestion de Terceros")
         titulo.setStyleSheet("font-size: 18px; font-weight: bold; color: #2c3e50;")
         layout.addWidget(titulo)
 
-        # Grupo de búsqueda
+        # Grupo de busqueda
         grupo_busqueda = QGroupBox("Buscar terceros")
         grupo_busqueda.setStyleSheet("QGroupBox { font-weight: bold; }")
         layout_busqueda = QHBoxLayout()
 
         self.txt_buscar = QLineEdit()
-        self.txt_buscar.setPlaceholderText("Buscar por código, nombre o NIT...")
+        self.txt_buscar.setPlaceholderText("Buscar por codigo, nombre o NIT...")
         self.txt_buscar.returnPressed.connect(self._buscar)
         self.txt_buscar.setStyleSheet("""
             QLineEdit {
@@ -100,7 +160,7 @@ class TercerosTab(QWidget):
         """)
         layout_busqueda.addWidget(btn_limpiar)
 
-        btn_importar = QPushButton("📥 Importar Excel")
+        btn_importar = QPushButton("Importar Excel")
         btn_importar.clicked.connect(self._importar_excel)
         btn_importar.setStyleSheet("""
             QPushButton {
@@ -120,19 +180,16 @@ class TercerosTab(QWidget):
         grupo_busqueda.setLayout(layout_busqueda)
         layout.addWidget(grupo_busqueda)
 
-        # Estadísticas
+        # Estadisticas
         self.label_stats = QLabel("")
         self.label_stats.setStyleSheet("color: #7f8c8d; font-size: 12px;")
         layout.addWidget(self.label_stats)
 
         # Tabla de terceros
-        self.tabla = QTableWidget()
-        self.tabla.setColumnCount(5)
-        self.tabla.setHorizontalHeaderLabels([
-            "Código Padre", "Nombre", "NIT", "Estado", "Acciones"
-        ])
+        self.modelo = TerceroTableModel([])
+        self.tabla = QTableView()
+        self.tabla.setModel(self.modelo)
 
-        # Configurar tabla
         header = self.tabla.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
@@ -141,14 +198,14 @@ class TercerosTab(QWidget):
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
 
         self.tabla.setAlternatingRowColors(True)
+        self.tabla.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.tabla.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.tabla.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.tabla.setStyleSheet("""
-            QTableWidget {
+            QTableView {
                 border: 1px solid #bdc3c7;
                 border-radius: 4px;
                 gridline-color: #ecf0f1;
-            }
-            QTableWidget::item {
-                padding: 5px;
             }
             QHeaderView::section {
                 background-color: #34495e;
@@ -158,6 +215,7 @@ class TercerosTab(QWidget):
                 font-weight: bold;
             }
         """)
+        self.tabla.clicked.connect(self._on_tabla_click)
 
         layout.addWidget(self.tabla, 1)
 
@@ -173,13 +231,13 @@ class TercerosTab(QWidget):
         self._actualizar_tabla(terceros)
 
     def _limpiar_busqueda(self):
-        """Limpia la búsqueda y muestra todos los terceros."""
+        """Limpia la busqueda y muestra todos los terceros."""
         self.txt_buscar.clear()
         self.refrescar()
 
     def _actualizar_tabla(self, terceros):
         """Actualiza la tabla con los terceros."""
-        self.tabla.setRowCount(len(terceros))
+        self.modelo.set_terceros(terceros)
 
         activos = sum(1 for t in terceros if t.se_registra)
         inactivos = len(terceros) - activos
@@ -188,74 +246,19 @@ class TercerosTab(QWidget):
             f"Activos: {activos} | Inactivos: {inactivos}"
         )
 
-        for i, tercero in enumerate(terceros):
-            # Código padre
-            item_cod = QTableWidgetItem(tercero.cod_padre)
-            self.tabla.setItem(i, 0, item_cod)
+    def _on_tabla_click(self, index: QModelIndex):
+        """Maneja clicks en la tabla (columna de accion)."""
+        if not index.isValid() or index.column() != 4:
+            return
 
-            # Nombre
-            item_nombre = QTableWidgetItem(tercero.nombre)
-            self.tabla.setItem(i, 1, item_nombre)
+        tercero = self.modelo.tercero_en_fila(index.row())
+        if not tercero:
+            return
 
-            # NIT
-            item_nit = QTableWidgetItem(tercero.nit)
-            self.tabla.setItem(i, 2, item_nit)
-
-            # Estado
-            estado_text = "✓ Activo" if tercero.se_registra else "✗ Inactivo"
-            item_estado = QTableWidgetItem(estado_text)
-            if tercero.se_registra:
-                item_estado.setForeground(Qt.GlobalColor.darkGreen)
-            else:
-                item_estado.setForeground(Qt.GlobalColor.red)
-            self.tabla.setItem(i, 3, item_estado)
-
-            # Acciones
-            widget_acciones = QWidget()
-            layout_acciones = QHBoxLayout(widget_acciones)
-            layout_acciones.setContentsMargins(5, 2, 5, 2)
-
-            if tercero.se_registra:
-                btn_accion = QPushButton("Desactivar")
-                btn_accion.setStyleSheet("""
-                    QPushButton {
-                        background-color: #e74c3c;
-                        color: white;
-                        padding: 5px 10px;
-                        border: none;
-                        border-radius: 3px;
-                        font-size: 11px;
-                    }
-                    QPushButton:hover {
-                        background-color: #c0392b;
-                    }
-                """)
-                btn_accion.clicked.connect(
-                    lambda checked, cod=tercero.cod_padre: self._desactivar_tercero(cod)
-                )
-            else:
-                btn_accion = QPushButton("Activar")
-                btn_accion.setStyleSheet("""
-                    QPushButton {
-                        background-color: #27ae60;
-                        color: white;
-                        padding: 5px 10px;
-                        border: none;
-                        border-radius: 3px;
-                        font-size: 11px;
-                    }
-                    QPushButton:hover {
-                        background-color: #229954;
-                    }
-                """)
-                btn_accion.clicked.connect(
-                    lambda checked, cod=tercero.cod_padre: self._activar_tercero(cod)
-                )
-
-            layout_acciones.addWidget(btn_accion)
-            layout_acciones.addStretch()
-
-            self.tabla.setCellWidget(i, 4, widget_acciones)
+        if tercero.se_registra:
+            self._desactivar_tercero(tercero.cod_padre)
+        else:
+            self._activar_tercero(tercero.cod_padre)
 
     def _activar_tercero(self, cod_padre: str):
         """Activa un tercero."""
@@ -278,9 +281,9 @@ class TercerosTab(QWidget):
         """Desactiva un tercero."""
         respuesta = QMessageBox.question(
             self,
-            "Confirmar desactivación",
-            f"¿Está seguro que desea desactivar el tercero {cod_padre}?\n\n"
-            "Las líneas de factura con este tercero serán rechazadas en futuros procesamientos.",
+            "Confirmar desactivacion",
+            f"Esta seguro que desea desactivar el tercero {cod_padre}?\n\n"
+            "Las lineas de factura con este tercero seran rechazadas en futuros procesamientos.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
         )
@@ -317,16 +320,16 @@ class TercerosTab(QWidget):
         # Preguntar si actualizar existentes
         respuesta = QMessageBox.question(
             self,
-            "Modo de importación",
-            "¿Desea actualizar los terceros existentes?\n\n"
-            "SÍ: Los terceros existentes serán actualizados\n"
-            "NO: Los terceros existentes serán ignorados",
+            "Modo de importacion",
+            "Desea actualizar los terceros existentes?\n\n"
+            "SI: Los terceros existentes seran actualizados\n"
+            "NO: Los terceros existentes seran ignorados",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.Yes
         )
         actualizar_existentes = respuesta == QMessageBox.StandardButton.Yes
 
-        # Crear diálogo de progreso
+        # Crear dialogo de progreso
         progress = ProgressDialog(
             self,
             "Importando terceros",
@@ -344,7 +347,7 @@ class TercerosTab(QWidget):
                 QMessageBox.warning(
                     self,
                     "Sin datos",
-                    "No se encontraron terceros válidos en el archivo Excel."
+                    "No se encontraron terceros validos en el archivo Excel."
                 )
                 return
 
@@ -353,11 +356,11 @@ class TercerosTab(QWidget):
             progress.set_message("Importando terceros a la base de datos...")
             QApplication.processEvents()
 
-            # Importar terceros con optimización para grandes volúmenes
+            # Importar terceros con optimizacion para grandes volumenes
             from lactalis_ventas.application.use_cases.importar_terceros import ResultadoImportacionTerceros
             resultado = ResultadoImportacionTerceros(total_leidos=len(terceros))
 
-            # Calcular intervalo de actualización (cada 100 registros o 1% del total)
+            # Calcular intervalo de actualizacion (cada 100 registros o 1% del total)
             update_interval = max(100, len(terceros) // 100) if len(terceros) > 1000 else 10
 
             # Procesar en lotes para mejor rendimiento
@@ -394,7 +397,7 @@ class TercerosTab(QWidget):
             progress.set_completed()
             QApplication.processEvents()
 
-            # Cerrar diálogo de progreso
+            # Cerrar dialogo de progreso
             progress.close()
 
             # Refrescar tabla
@@ -402,8 +405,8 @@ class TercerosTab(QWidget):
 
             # Mostrar resultado
             mensaje = (
-                f"Importación completada:\n\n"
-                f"Total leídos: {resultado.total_leidos}\n"
+                f"Importacion completada:\n\n"
+                f"Total leidos: {resultado.total_leidos}\n"
                 f"Nuevos: {resultado.terceros_nuevos}\n"
                 f"Actualizados: {resultado.terceros_actualizados}\n"
                 f"Ignorados: {resultado.terceros_ignorados}\n"
@@ -417,7 +420,7 @@ class TercerosTab(QWidget):
 
             QMessageBox.information(
                 self,
-                "Importación completada",
+                "Importacion completada",
                 mensaje
             )
 
@@ -426,5 +429,5 @@ class TercerosTab(QWidget):
             QMessageBox.critical(
                 self,
                 "Error al importar",
-                f"Ocurrió un error al importar el archivo:\n\n{str(e)}"
+                f"Ocurrio un error al importar el archivo:\n\n{str(e)}"
             )
