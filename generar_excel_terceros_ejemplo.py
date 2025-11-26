@@ -5,97 +5,112 @@ import pandas as pd
 def generar_excel_terceros():
     """Genera un archivo Excel de ejemplo con terceros."""
 
-    # Datos de ejemplo - Formato: V, Nombre Código Padre, NIT, Se Registra
+    # Datos de ejemplo - Formato: V (ID Único), Nombre Código Padre, Nombre, NIT, Se Registra
     datos = [
         {
-            "V": 1,
-            "Nombre Código Padre": "T001",
+            "V": "T001",
+            "Nombre Código Padre": "COD001",
+            "Nombre": "Distribuidora La Esperanza",
             "NIT": "900123456-1",
-            "Se Registra": True
+            "Se Registra": "NIT"
         },
         {
-            "V": 2,
-            "Nombre Código Padre": "T002",
+            "V": "T002",
+            "Nombre Código Padre": "COD002",
+            "Nombre": "Comercial El Progreso",
             "NIT": "800234567-2",
-            "Se Registra": True
+            "Se Registra": "NIT"
         },
         {
-            "V": 3,
-            "Nombre Código Padre": "T003",
+            "V": "T003",
+            "Nombre Código Padre": "COD003",
+            "Nombre": "Supermercado Los Andes",
             "NIT": "700345678-3",
-            "Se Registra": True
+            "Se Registra": "NIT"
         },
         {
-            "V": 4,
-            "Nombre Código Padre": "T004",
+            "V": "T004",
+            "Nombre Código Padre": "COD004",
+            "Nombre": "Almacén Don José",
             "NIT": "600456789-4",
-            "Se Registra": True
+            "Se Registra": "NIT"
         },
         {
-            "V": 5,
-            "Nombre Código Padre": "T005",
+            "V": "T005",
+            "Nombre Código Padre": "COD005",
+            "Nombre": "Tienda La Fortuna",
             "NIT": "890123456-5",
-            "Se Registra": True
+            "Se Registra": "NIT"
         },
         {
-            "V": 6,
-            "Nombre Código Padre": "T006",
+            "V": "T006",
+            "Nombre Código Padre": "COD006",
+            "Nombre": "Mercado Central",
             "NIT": "890234567-6",
-            "Se Registra": True
+            "Se Registra": "NIT"
         },
         {
-            "V": 7,
-            "Nombre Código Padre": "T007",
+            "V": "T007",
+            "Nombre Código Padre": "COD007",
+            "Nombre": "Distribuciones El Sol",
             "NIT": "890345678-7",
-            "Se Registra": True
+            "Se Registra": "NIT"
         },
         {
-            "V": 8,
-            "Nombre Código Padre": "T008",
+            "V": "T008",
+            "Nombre Código Padre": "COD008",
+            "Nombre": "Comercial La Luna",
             "NIT": "890456789-8",
-            "Se Registra": True
+            "Se Registra": "NIT"
         },
         {
-            "V": 9,
-            "Nombre Código Padre": "T009",
+            "V": "T009",
+            "Nombre Código Padre": "COD009",
+            "Nombre": "Almacén Las Estrellas",
             "NIT": "890567890-9",
-            "Se Registra": True
+            "Se Registra": "NIT"
         },
         {
-            "V": 10,
-            "Nombre Código Padre": "T010",
+            "V": "T010",
+            "Nombre Código Padre": "COD010",
+            "Nombre": "Supermercado El Valle",
             "NIT": "890678901-0",
-            "Se Registra": True
+            "Se Registra": "NIT"
         },
         {
-            "V": 11,
-            "Nombre Código Padre": "T011",
+            "V": "T011",
+            "Nombre Código Padre": "COD011",
+            "Nombre": "Tienda La Montaña",
             "NIT": "800789012-1",
-            "Se Registra": False  # Este tercero está desactivado
+            "Se Registra": "NO NIT"  # Este tercero está desactivado
         },
         {
-            "V": 12,
-            "Nombre Código Padre": "T012",
+            "V": "T012",
+            "Nombre Código Padre": "COD012",
+            "Nombre": "Distribuidora El Río",
             "NIT": "890890123-2",
-            "Se Registra": True
+            "Se Registra": "NIT"
         },
         {
-            "V": 13,
-            "Nombre Código Padre": "T013",
+            "V": "T013",
+            "Nombre Código Padre": "COD013",
+            "Nombre": "Comercial La Pradera",
             "NIT": "890901234-3",
-            "Se Registra": True
+            "Se Registra": "NIT"
         },
         {
-            "V": 14,
-            "Nombre Código Padre": "T014",
+            "V": "T014",
+            "Nombre Código Padre": "COD014",
+            "Nombre": "Almacén El Bosque",
             "NIT": "890012345-4",
-            "Se Registra": True
+            "Se Registra": "NIT"
         },
         {
-            "V": 15,
-            "Nombre Código Padre": "T015",
+            "V": "T015",
+            "Nombre Código Padre": "COD015",
+            "Nombre": "Supermercado La Costa",
             "NIT": "800123456-5",
-            "Se Registra": True
+            "Se Registra": "NIT"
         },
     ]
 
@@ -109,14 +124,17 @@ def generar_excel_terceros():
     print(f"Archivo generado exitosamente: {archivo}")
     print(f"\nEstadísticas del archivo:")
     print(f"- Total de terceros: {len(datos)}")
-    print(f"- Terceros activos: {sum(1 for t in datos if t['Se Registra'])}")
-    print(f"- Terceros inactivos: {sum(1 for t in datos if not t['Se Registra'])}")
+    print(f"- Terceros activos: {sum(1 for t in datos if t['Se Registra'] == 'NIT')}")
+    print(f"- Terceros inactivos: {sum(1 for t in datos if t['Se Registra'] == 'NO NIT')}")
     print(f"\nFormato de columnas:")
-    print(f"- V: Identificador numérico")
-    print(f"- Nombre Código Padre: Código del tercero")
+    print(f"- V: Identificador único del tercero")
+    print(f"- Nombre Código Padre: Código padre del tercero")
+    print(f"- Nombre: Nombre completo del tercero")
     print(f"- NIT: Número de identificación tributaria")
-    print(f"- Se Registra: Estado (True/False)")
+    print(f"- Se Registra: Estado ('NIT' para activo, 'NO NIT' para inactivo)")
     print(f"\nPuede usar este archivo para importar terceros a la aplicación.")
+    print(f"\nIMPORTANTE: La columna 'V' es el identificador único que se usará")
+    print(f"para comparar con 'Cód.Padre' en las facturas de Lactalis.")
 
 
 if __name__ == "__main__":

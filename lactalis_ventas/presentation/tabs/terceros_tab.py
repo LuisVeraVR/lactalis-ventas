@@ -17,7 +17,7 @@ from lactalis_ventas.presentation.widgets.progress_dialog import ProgressDialog
 class TerceroTableModel(QAbstractTableModel):
     """Modelo liviano para mostrar terceros sin crear miles de widgets."""
 
-    HEADERS = ["Codigo Padre", "Nombre", "NIT", "Estado", "Accion"]
+    HEADERS = ["ID Unico", "Codigo Padre", "Nombre", "NIT", "Estado", "Accion"]
 
     def __init__(self, terceros):
         super().__init__()
@@ -38,20 +38,22 @@ class TerceroTableModel(QAbstractTableModel):
 
         if role == Qt.ItemDataRole.DisplayRole:
             if col == 0:
-                return tercero.cod_padre
+                return tercero.identificador_unico
             if col == 1:
-                return tercero.nombre
+                return tercero.cod_padre
             if col == 2:
-                return tercero.nit
+                return tercero.nombre
             if col == 3:
-                return "Activo" if tercero.se_registra else "Inactivo"
+                return tercero.nit
             if col == 4:
+                return "Activo" if tercero.se_registra else "Inactivo"
+            if col == 5:
                 return "Desactivar" if tercero.se_registra else "Activar"
 
-        if role == Qt.ItemDataRole.ForegroundRole and col == 3:
+        if role == Qt.ItemDataRole.ForegroundRole and col == 4:
             return QColor("darkgreen") if tercero.se_registra else QColor("red")
 
-        if role == Qt.ItemDataRole.TextAlignmentRole and col in (0, 2, 3, 4):
+        if role == Qt.ItemDataRole.TextAlignmentRole and col in (0, 1, 3, 4, 5):
             return Qt.AlignmentFlag.AlignCenter
 
         return None
@@ -192,10 +194,11 @@ class TercerosTab(QWidget):
 
         header = self.tabla.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
 
         self.tabla.setAlternatingRowColors(True)
         self.tabla.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -248,7 +251,7 @@ class TercerosTab(QWidget):
 
     def _on_tabla_click(self, index: QModelIndex):
         """Maneja clicks en la tabla (columna de accion)."""
-        if not index.isValid() or index.column() != 4:
+        if not index.isValid() or index.column() != 5:
             return
 
         tercero = self.modelo.tercero_en_fila(index.row())

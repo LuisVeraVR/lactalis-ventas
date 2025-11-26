@@ -11,16 +11,17 @@ class ExcelProcessor:
 
     # Columnas esperadas en el Excel
     COLUMNAS_ESPERADAS = {
-        "numero_factura": ["numero_factura", "factura", "nro_factura", "número factura"],
-        "fecha": ["fecha", "fecha_factura"],
-        "cod_padre": ["cod_padre", "código padre", "codigo_padre"],
-        "nombre_tercero": ["nombre_tercero", "tercero", "cliente", "nombre cliente"],
+        "numero_factura": ["factura", "numero_factura", "nro_factura", "número factura"],
+        "fecha": ["fechafact.", "fecha_factura", "fecha", "fechafact", "fecha fact."],
+        "anulada": ["anulada"],
+        "cod_padre": ["cód.padre", "cod.padre", "código padre", "codigo padre", "cod_padre", "codigo_padre"],
+        "nombre_tercero": ["nombre código padre", "nombre codigo padre", "nombre_tercero", "tercero", "cliente", "nombre cliente"],
         "nit": ["nit", "identificación", "identificacion"],
-        "codigo_producto": ["codigo_producto", "código producto", "cod_producto"],
-        "descripcion_producto": ["descripcion_producto", "descripción producto", "producto", "descripcion"],
-        "grupo_producto": ["grupo_producto", "grupo", "categoría", "categoria"],
-        "cantidad": ["cantidad", "qty", "unidades"],
-        "valor_neto": ["valor_neto", "valor neto", "total", "valor"]
+        "codigo_producto": ["nºmat", "n°mat", "numeromat", "numero mat", "codigo_producto", "código producto", "cod_producto"],
+        "descripcion_producto": ["descripción del material", "descripcion del material", "descripcion_producto", "descripción producto", "producto", "descripcion"],
+        "grupo_producto": ["gr.mater.2", "gr mater.2", "grupo_producto", "grupo", "categoría", "categoria", "gr.mater.4"],
+        "cantidad": ["cant. pza", "cantidad", "qty", "unidades", "cant.pza", "ctd.fact."],
+        "valor_neto": ["valor neto", "valor_neto", "total", "valor"]
     }
 
     def procesar_archivo(self, ruta_archivo: str) -> List[FacturaLinea]:
@@ -46,9 +47,13 @@ class ExcelProcessor:
             # Mapear columnas
             columnas_mapeadas = self._mapear_columnas(df.columns)
 
-            # Validar que existan las columnas requeridas
-            columnas_faltantes = [
+            # Validar que existan las columnas requeridas (excepto anulada que es opcional)
+            columnas_requeridas = [
                 col for col in self.COLUMNAS_ESPERADAS.keys()
+                if col != "anulada"
+            ]
+            columnas_faltantes = [
+                col for col in columnas_requeridas
                 if col not in columnas_mapeadas
             ]
 
@@ -56,6 +61,11 @@ class ExcelProcessor:
                 raise ValueError(
                     f"Columnas faltantes en el Excel: {', '.join(columnas_faltantes)}"
                 )
+
+            # Si no hay columna anulada, agregar una por defecto con valor vacío
+            if "anulada" not in columnas_mapeadas:
+                df["_anulada_default"] = ""
+                columnas_mapeadas["anulada"] = "_anulada_default"
 
             # Procesar cada fila
             lineas = []
@@ -109,6 +119,10 @@ class ExcelProcessor:
             else:
                 fecha = pd.to_datetime(fecha_raw).to_pydatetime()
 
+            # Procesar anulada
+            anulada_raw = row[columnas_mapeadas["anulada"]]
+            anulada = str(anulada_raw).strip() if not pd.isna(anulada_raw) else ""
+
             cod_padre = str(row[columnas_mapeadas["cod_padre"]]).strip()
             nombre_tercero = str(row[columnas_mapeadas["nombre_tercero"]]).strip()
             nit = str(row[columnas_mapeadas["nit"]]).strip()
@@ -136,6 +150,7 @@ class ExcelProcessor:
             linea = FacturaLinea(
                 numero_factura=numero_factura,
                 fecha=fecha,
+                anulada=anulada,
                 cod_padre=cod_padre,
                 nombre_tercero=nombre_tercero,
                 nit=nit,

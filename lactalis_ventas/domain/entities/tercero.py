@@ -7,6 +7,7 @@ from typing import Optional
 class Tercero:
     """Representa un tercero (cliente/proveedor) en el sistema."""
 
+    identificador_unico: str
     cod_padre: str
     nombre: str
     nit: str
@@ -14,6 +15,8 @@ class Tercero:
 
     def __post_init__(self):
         """Validaciones de negocio."""
+        if not self.identificador_unico or not self.identificador_unico.strip():
+            raise ValueError("El identificador único del tercero no puede estar vacío")
         if not self.cod_padre or not self.cod_padre.strip():
             raise ValueError("El código padre del tercero no puede estar vacío")
         if not self.nombre or not self.nombre.strip():

@@ -18,6 +18,11 @@ class TerceroRepository(ABC):
         pass
 
     @abstractmethod
+    def obtener_por_identificador(self, identificador_unico: str) -> Optional[Tercero]:
+        """Obtiene un tercero por su identificador único."""
+        pass
+
+    @abstractmethod
     def guardar(self, tercero: Tercero) -> None:
         """Guarda un tercero."""
         pass

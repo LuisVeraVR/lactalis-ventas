@@ -9,8 +9,8 @@ class TerceroExcelProcessor:
 
     # Columnas esperadas en el Excel
     COLUMNAS_ESPERADAS = {
-        "id": ["v", "id", "#", "número", "numero"],  # Columna V como ID (opcional)
-        "cod_padre": ["nombre código padre", "nombre codigo padre", "cod_padre", "código padre", "codigo_padre", "codigo", "código", "code"],
+        "identificador_unico": ["identificador unico", "identificador único", "identificador_unico", "id_unico", "id único", "v", "id", "#", "número", "numero"],
+        "cod_padre": ["nombre código padre", "nombre codigo padre", "cod_padre", "código padre", "codigo_padre", "codigo", "código", "code", "cód.padre"],
         "nombre": ["nombre", "razon_social", "razón social", "cliente", "tercero", "name"],
         "nit": ["nit", "identificación", "identificacion", "documento", "ruc"],
         "se_registra": ["se_registra", "se registra", "activo", "estado", "active"]
@@ -40,6 +40,8 @@ class TerceroExcelProcessor:
             columnas_mapeadas = self._mapear_columnas(df.columns)
 
             # Validar que existan las columnas requeridas
+            if "identificador_unico" not in columnas_mapeadas:
+                raise ValueError("El Excel debe contener una columna de 'Identificador Único', 'ID' o 'V'")
             if "cod_padre" not in columnas_mapeadas:
                 raise ValueError("El Excel debe contener una columna de 'Nombre Código Padre' o 'codigo'")
             if "nit" not in columnas_mapeadas:
@@ -96,6 +98,7 @@ class TerceroExcelProcessor:
     def _procesar_fila(self, row, columnas_mapeadas: dict, idx: int) -> Tercero:
         """Procesa una fila del DataFrame y retorna un Tercero."""
         # Extraer datos de la fila
+        identificador_unico = str(row[columnas_mapeadas["identificador_unico"]]).strip()
         cod_padre = str(row[columnas_mapeadas["cod_padre"]]).strip()
         nombre = str(row[columnas_mapeadas["nombre"]]).strip()
         nit = str(row[columnas_mapeadas["nit"]]).strip()
@@ -120,6 +123,8 @@ class TerceroExcelProcessor:
             se_registra = True
 
         # Validar que los datos básicos no estén vacíos
+        if not identificador_unico or identificador_unico == "nan":
+            raise ValueError("Identificador único vacío")
         if not cod_padre or cod_padre == "nan":
             raise ValueError("Código padre vacío")
         if not nombre or nombre == "nan":
@@ -129,6 +134,7 @@ class TerceroExcelProcessor:
 
         # Crear el tercero
         tercero = Tercero(
+            identificador_unico=identificador_unico,
             cod_padre=cod_padre,
             nombre=nombre,
             nit=nit,

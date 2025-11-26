@@ -57,12 +57,14 @@ class TestEntidades(unittest.TestCase):
     def test_crear_tercero_valido(self):
         """Test: Crear tercero válido."""
         tercero = Tercero(
-            cod_padre="T001",
+            identificador_unico="T001",
+            cod_padre="COD001",
             nombre="Cliente Prueba",
             nit="123456789",
             se_registra=True
         )
-        self.assertEqual(tercero.cod_padre, "T001")
+        self.assertEqual(tercero.identificador_unico, "T001")
+        self.assertEqual(tercero.cod_padre, "COD001")
         self.assertEqual(tercero.nombre, "Cliente Prueba")
         self.assertTrue(tercero.debe_registrarse())
 
@@ -71,6 +73,7 @@ class TestEntidades(unittest.TestCase):
         linea = FacturaLinea(
             numero_factura="Factura001",
             fecha=datetime.now(),
+            anulada="",
             cod_padre="T001",
             nombre_tercero="Cliente",
             nit="123456789",
@@ -88,6 +91,7 @@ class TestEntidades(unittest.TestCase):
         linea = FacturaLinea(
             numero_factura="FAC001",  # No empieza con "Factura"
             fecha=datetime.now(),
+            anulada="",
             cod_padre="T001",
             nombre_tercero="Cliente",
             nit="123456789",
@@ -104,6 +108,7 @@ class TestEntidades(unittest.TestCase):
         linea = FacturaLinea(
             numero_factura="Factura001",
             fecha=datetime.now(),
+            anulada="",
             cod_padre="T001",
             nombre_tercero="Cliente",
             nit="123456789",
@@ -184,18 +189,20 @@ class TestRepositorios(unittest.TestCase):
 
     def test_guardar_y_obtener_tercero(self):
         """Test: Guardar y obtener tercero."""
-        tercero = Tercero("T001", "Cliente Test", "123456789")
+        tercero = Tercero("T001", "COD001", "Cliente Test", "123456789")
         self.tercero_repo.guardar(tercero)
 
-        tercero_obtenido = self.tercero_repo.obtener_por_cod_padre("T001")
+        tercero_obtenido = self.tercero_repo.obtener_por_identificador("T001")
         self.assertIsNotNone(tercero_obtenido)
-        self.assertEqual(tercero_obtenido.cod_padre, "T001")
+        self.assertEqual(tercero_obtenido.identificador_unico, "T001")
+        self.assertEqual(tercero_obtenido.cod_padre, "COD001")
 
     def test_guardar_lineas_factura(self):
         """Test: Guardar líneas de factura."""
         linea = FacturaLinea(
             numero_factura="Factura001",
             fecha=datetime.now(),
+            anulada="",
             cod_padre="T001",
             nombre_tercero="Cliente",
             nit="123456789",
@@ -245,9 +252,17 @@ class TestCasosDeUso(unittest.TestCase):
 
     def test_procesar_factura_valida(self):
         """Test: Procesar factura válida."""
+        # Crear producto y tercero primero
+        producto = Producto("P001", "Yogurt Natural", "Lácteos")
+        self.producto_repo.guardar(producto)
+
+        tercero = Tercero("T001", "COD001", "Cliente Test", "123456789")
+        self.tercero_repo.guardar(tercero)
+
         linea = FacturaLinea(
             numero_factura="Factura001",
             fecha=datetime.now(),
+            anulada="",
             cod_padre="T001",
             nombre_tercero="Cliente Test",
             nit="123456789",
@@ -269,6 +284,7 @@ class TestCasosDeUso(unittest.TestCase):
         linea = FacturaLinea(
             numero_factura="FAC001",  # No empieza con "Factura"
             fecha=datetime.now(),
+            anulada="",
             cod_padre="T001",
             nombre_tercero="Cliente Test",
             nit="123456789",
@@ -289,6 +305,7 @@ class TestCasosDeUso(unittest.TestCase):
         linea = FacturaLinea(
             numero_factura="Factura001",
             fecha=datetime.now(),
+            anulada="",
             cod_padre="T001",
             nombre_tercero="Cliente Test",
             nit="123456789",
@@ -305,15 +322,20 @@ class TestCasosDeUso(unittest.TestCase):
         self.assertEqual(resultado.lineas_rechazadas, 1)
 
     def test_rechazar_producto_depurar(self):
-        """Test: Rechazar productos en lista de depuración."""
+        """Test: Rechazar productos que no existen en BD."""
+        # Crear tercero pero NO crear el producto
+        tercero = Tercero("T001", "COD001", "Cliente Test", "123456789")
+        self.tercero_repo.guardar(tercero)
+
         linea = FacturaLinea(
             numero_factura="Factura001",
             fecha=datetime.now(),
+            anulada="",
             cod_padre="T001",
             nombre_tercero="Cliente Test",
             nit="123456789",
-            codigo_producto="P001",
-            descripcion_producto="Crema de Leche",  # Producto a depurar
+            codigo_producto="P001",  # Producto que no existe en BD
+            descripcion_producto="Producto Test",
             grupo_producto="Lácteos",
             cantidad=Decimal("10"),
             valor_neto=Decimal("1000.00")
@@ -326,6 +348,10 @@ class TestCasosDeUso(unittest.TestCase):
 
     def test_rechazar_producto_desactivado(self):
         """Test: Rechazar producto desactivado."""
+        # Crear tercero activo
+        tercero = Tercero("T001", "COD001", "Cliente Test", "123456789")
+        self.tercero_repo.guardar(tercero)
+
         # Crear y desactivar producto
         producto = Producto("P001", "Producto Test", "Grupo")
         producto.desactivar()
@@ -334,6 +360,7 @@ class TestCasosDeUso(unittest.TestCase):
         linea = FacturaLinea(
             numero_factura="Factura001",
             fecha=datetime.now(),
+            anulada="",
             cod_padre="T001",
             nombre_tercero="Cliente Test",
             nit="123456789",
@@ -351,14 +378,19 @@ class TestCasosDeUso(unittest.TestCase):
 
     def test_rechazar_tercero_desactivado(self):
         """Test: Rechazar tercero desactivado."""
+        # Crear producto activo
+        producto = Producto("P001", "Producto Test", "Grupo")
+        self.producto_repo.guardar(producto)
+
         # Crear y desactivar tercero
-        tercero = Tercero("T001", "Cliente Test", "123456789")
+        tercero = Tercero("T001", "COD001", "Cliente Test", "123456789")
         tercero.desactivar()
         self.tercero_repo.guardar(tercero)
 
         linea = FacturaLinea(
             numero_factura="Factura001",
             fecha=datetime.now(),
+            anulada="",
             cod_padre="T001",
             nombre_tercero="Cliente Test",
             nit="123456789",
@@ -375,29 +407,30 @@ class TestCasosDeUso(unittest.TestCase):
         self.assertEqual(resultado.lineas_rechazadas, 1)
 
     def test_crear_producto_automaticamente(self):
-        """Test: Crear producto automáticamente si no existe."""
+        """Test: Rechazar cuando tercero no existe en BD."""
+        # Crear producto pero NO crear el tercero
+        producto = Producto("P001", "Producto Test", "Grupo")
+        self.producto_repo.guardar(producto)
+
         linea = FacturaLinea(
             numero_factura="Factura001",
             fecha=datetime.now(),
-            cod_padre="T001",
+            anulada="",
+            cod_padre="T999",  # Tercero que no existe en BD
             nombre_tercero="Cliente Test",
             nit="123456789",
-            codigo_producto="P999",  # Producto que no existe
-            descripcion_producto="Nuevo Producto",
-            grupo_producto="Grupo Nuevo",
+            codigo_producto="P001",
+            descripcion_producto="Producto Test",
+            grupo_producto="Grupo",
             cantidad=Decimal("10"),
             valor_neto=Decimal("1000.00")
         )
 
         resultado = self.procesar_facturas_uc.ejecutar([linea])
 
-        # Verificar que se procesó correctamente
-        self.assertEqual(resultado.lineas_procesadas, 1)
-
-        # Verificar que se creó el producto
-        producto = self.producto_repo.obtener_por_codigo("P999")
-        self.assertIsNotNone(producto)
-        self.assertEqual(producto.descripcion, "Nuevo Producto")
+        # Verificar que se rechazó
+        self.assertEqual(resultado.lineas_procesadas, 0)
+        self.assertEqual(resultado.lineas_rechazadas, 1)
 
 
 def suite():

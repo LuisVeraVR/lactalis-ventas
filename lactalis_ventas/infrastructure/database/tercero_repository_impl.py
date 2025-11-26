@@ -26,14 +26,24 @@ class TerceroRepositoryImpl(TerceroRepository):
         row = cursor.fetchone()
         return self._row_to_tercero(row) if row else None
 
+    def obtener_por_identificador(self, identificador_unico: str) -> Optional[Tercero]:
+        """Obtiene un tercero por su identificador único."""
+        cursor = self.db.ejecutar_query(
+            "SELECT * FROM terceros WHERE identificador_unico = ?",
+            (identificador_unico,)
+        )
+        row = cursor.fetchone()
+        return self._row_to_tercero(row) if row else None
+
     def guardar(self, tercero: Tercero) -> None:
         """Guarda un tercero."""
         self.db.ejecutar_query(
             """
-            INSERT OR REPLACE INTO terceros (cod_padre, nombre, nit, se_registra)
-            VALUES (?, ?, ?, ?)
+            INSERT OR REPLACE INTO terceros (identificador_unico, cod_padre, nombre, nit, se_registra)
+            VALUES (?, ?, ?, ?, ?)
             """,
             (
+                tercero.identificador_unico,
                 tercero.cod_padre,
                 tercero.nombre,
                 tercero.nit,
@@ -47,14 +57,15 @@ class TerceroRepositoryImpl(TerceroRepository):
         self.db.ejecutar_query(
             """
             UPDATE terceros
-            SET nombre = ?, nit = ?, se_registra = ?
-            WHERE cod_padre = ?
+            SET cod_padre = ?, nombre = ?, nit = ?, se_registra = ?
+            WHERE identificador_unico = ?
             """,
             (
+                tercero.cod_padre,
                 tercero.nombre,
                 tercero.nit,
                 1 if tercero.se_registra else 0,
-                tercero.cod_padre
+                tercero.identificador_unico
             )
         )
         self.db.commit()
@@ -64,10 +75,10 @@ class TerceroRepositoryImpl(TerceroRepository):
         cursor = self.db.ejecutar_query(
             """
             SELECT * FROM terceros
-            WHERE cod_padre LIKE ? OR nombre LIKE ? OR nit LIKE ?
+            WHERE identificador_unico LIKE ? OR cod_padre LIKE ? OR nombre LIKE ? OR nit LIKE ?
             ORDER BY nombre
             """,
-            (f"%{termino}%", f"%{termino}%", f"%{termino}%")
+            (f"%{termino}%", f"%{termino}%", f"%{termino}%", f"%{termino}%")
         )
         rows = cursor.fetchall()
         return [self._row_to_tercero(row) for row in rows]
@@ -75,6 +86,7 @@ class TerceroRepositoryImpl(TerceroRepository):
     def _row_to_tercero(self, row) -> Tercero:
         """Convierte una fila de la BD a un objeto Tercero."""
         return Tercero(
+            identificador_unico=row["identificador_unico"],
             cod_padre=row["cod_padre"],
             nombre=row["nombre"],
             nit=row["nit"],

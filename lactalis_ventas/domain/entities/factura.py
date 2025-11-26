@@ -11,6 +11,7 @@ class FacturaLinea:
 
     numero_factura: str
     fecha: datetime
+    anulada: str
     cod_padre: str
     nombre_tercero: str
     nit: str
@@ -39,6 +40,10 @@ class FacturaLinea:
 
         # Regla 2: El valor neto debe ser mayor que 0
         if self.valor_neto <= 0:
+            return False
+
+        # Regla 3: La factura no debe estar anulada (columna Anulada no debe tener "X")
+        if self.anulada and str(self.anulada).strip().upper() == "X":
             return False
 
         return True

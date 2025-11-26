@@ -23,6 +23,7 @@ class FacturaRepositoryImpl(FacturaRepository):
             (
                 linea.numero_factura,
                 linea.fecha.strftime("%Y-%m-%d %H:%M:%S"),
+                linea.anulada,
                 linea.cod_padre,
                 linea.nombre_tercero,
                 linea.nit,
@@ -40,10 +41,10 @@ class FacturaRepositoryImpl(FacturaRepository):
         self.db.ejecutar_many(
             """
             INSERT INTO facturas_procesadas
-            (numero_factura, fecha, cod_padre, nombre_tercero, nit,
+            (numero_factura, fecha, anulada, cod_padre, nombre_tercero, nit,
              codigo_producto, descripcion_producto, grupo_producto,
              cantidad, valor_neto, fue_registrada, motivo_rechazo)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             datos
         )
@@ -95,6 +96,7 @@ class FacturaRepositoryImpl(FacturaRepository):
         return FacturaLinea(
             numero_factura=row["numero_factura"],
             fecha=datetime.strptime(row["fecha"], "%Y-%m-%d %H:%M:%S"),
+            anulada=row["anulada"] if "anulada" in row.keys() else "",
             cod_padre=row["cod_padre"],
             nombre_tercero=row["nombre_tercero"],
             nit=row["nit"],

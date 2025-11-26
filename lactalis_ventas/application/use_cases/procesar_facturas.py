@@ -12,14 +12,6 @@ from lactalis_ventas.domain.value_objects.resultado_procesamiento import Resulta
 class ProcesarFacturasUseCase:
     """Caso de uso para procesar facturas."""
 
-    # Productos a depurar (no registrar)
-    PRODUCTOS_DEPURAR = [
-        "crema de leche",
-        "leche en polvo",
-        "leche líquida",
-        "leche liquida"
-    ]
-
     def __init__(
         self,
         producto_repo: ProductoRepository,
@@ -37,71 +29,65 @@ class ProcesarFacturasUseCase:
         Reglas:
         1. Solo facturas que empiecen con "Factura"
         2. Valor neto > 0
-        3. Depurar: crema de leche, leche en polvo, leche líquida
-        4. Producto debe estar activo (se_registra=True)
-        5. Tercero debe estar activo (se_registra=True)
+        3. Factura no debe estar anulada (Anulada != 'X')
+        4. Producto debe existir en BD (validar por codigo)
+        5. Producto debe estar activo (se_registra=True)
+        6. Tercero debe existir en BD (validar por identificador_unico = Cód.Padre)
+        7. Tercero debe estar activo (se_registra=True)
         """
         resultado = ResultadoProcesamiento(total_lineas=len(lineas))
 
         for linea in lineas:
             try:
-                # Regla 1: Número de factura debe empezar con "Factura"
-                if not linea.numero_factura.startswith("Factura"):
-                    linea.marcar_como_rechazada("Factura no empieza con 'Factura'")
+                # Reglas 1, 2 y 3: Se validan en el método es_valida() de FacturaLinea
+                # (Factura empieza con "Factura", Valor neto > 0, No anulada)
+                if not linea.es_valida():
+                    motivo = "Factura inválida: "
+                    if not linea.numero_factura.startswith("Factura"):
+                        motivo += "no empieza con 'Factura'"
+                    elif linea.valor_neto <= 0:
+                        motivo += f"valor neto inválido ({linea.valor_neto})"
+                    elif linea.anulada and str(linea.anulada).strip().upper() == "X":
+                        motivo += "factura anulada"
+                    else:
+                        motivo += "no cumple reglas de negocio"
+
+                    linea.marcar_como_rechazada(motivo)
                     resultado.agregar_linea_rechazada(linea)
                     continue
 
-                # Regla 2: Valor neto debe ser mayor que 0
-                if linea.valor_neto <= 0:
-                    linea.marcar_como_rechazada(f"Valor neto inválido: {linea.valor_neto}")
-                    resultado.agregar_linea_rechazada(linea)
-                    continue
-
-                # Regla 3: Depurar productos específicos
-                if self._es_producto_depurar(linea.descripcion_producto):
+                # Regla 4 y 5: Verificar si el producto existe y está activo
+                producto = self.producto_repo.obtener_por_codigo(linea.codigo_producto)
+                if not producto:
                     linea.marcar_como_rechazada(
-                        f"Producto en lista de depuración: {linea.descripcion_producto}"
+                        f"Producto no existe en BD: {linea.codigo_producto}"
                     )
                     resultado.agregar_linea_rechazada(linea)
                     continue
 
-                # Verificar si el producto debe registrarse
-                producto = self.producto_repo.obtener_por_codigo(linea.codigo_producto)
-                if producto and not producto.debe_registrarse():
+                if not producto.debe_registrarse():
                     linea.marcar_como_rechazada(
                         f"Producto desactivado: {linea.codigo_producto}"
                     )
                     resultado.agregar_linea_rechazada(linea)
                     continue
 
-                # Si el producto no existe, crearlo
-                if not producto:
-                    producto = Producto(
-                        codigo=linea.codigo_producto,
-                        descripcion=linea.descripcion_producto,
-                        grupo=linea.grupo_producto,
-                        se_registra=True
+                # Regla 6 y 7: Verificar si el tercero existe y está activo
+                # cod_padre en el Excel corresponde al identificador_unico del tercero en BD
+                tercero = self.tercero_repo.obtener_por_identificador(linea.cod_padre)
+                if not tercero:
+                    linea.marcar_como_rechazada(
+                        f"Tercero no existe en BD: {linea.cod_padre}"
                     )
-                    self.producto_repo.guardar(producto)
+                    resultado.agregar_linea_rechazada(linea)
+                    continue
 
-                # Verificar si el tercero debe registrarse
-                tercero = self.tercero_repo.obtener_por_cod_padre(linea.cod_padre)
-                if tercero and not tercero.debe_registrarse():
+                if not tercero.debe_registrarse():
                     linea.marcar_como_rechazada(
                         f"Tercero desactivado: {linea.cod_padre}"
                     )
                     resultado.agregar_linea_rechazada(linea)
                     continue
-
-                # Si el tercero no existe, crearlo
-                if not tercero:
-                    tercero = Tercero(
-                        cod_padre=linea.cod_padre,
-                        nombre=linea.nombre_tercero,
-                        nit=linea.nit,
-                        se_registra=True
-                    )
-                    self.tercero_repo.guardar(tercero)
 
                 # Si pasó todas las validaciones, marcar como registrada
                 linea.marcar_como_registrada()
@@ -120,11 +106,3 @@ class ProcesarFacturasUseCase:
             resultado.agregar_error(f"Error guardando facturas: {str(e)}")
 
         return resultado
-
-    def _es_producto_depurar(self, descripcion: str) -> bool:
-        """Verifica si un producto debe ser depurado (no registrado)."""
-        descripcion_lower = descripcion.lower().strip()
-        return any(
-            producto_depurar in descripcion_lower
-            for producto_depurar in self.PRODUCTOS_DEPURAR
-        )

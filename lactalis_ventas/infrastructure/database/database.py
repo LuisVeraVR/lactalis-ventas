@@ -42,12 +42,40 @@ class Database:
         # Tabla terceros
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS terceros (
-                cod_padre TEXT PRIMARY KEY,
+                identificador_unico TEXT PRIMARY KEY,
+                cod_padre TEXT NOT NULL,
                 nombre TEXT NOT NULL,
                 nit TEXT NOT NULL,
                 se_registra INTEGER NOT NULL DEFAULT 1
             )
         """)
+
+        # Migrar datos existentes si es necesario
+        # Verificar si la tabla existe y tiene el formato antiguo
+        cursor.execute("""
+            SELECT sql FROM sqlite_master
+            WHERE type='table' AND name='terceros'
+        """)
+        table_info = cursor.fetchone()
+        if table_info and 'identificador_unico' not in table_info[0]:
+            # La tabla existe pero no tiene identificador_unico, migrar
+            cursor.execute("""
+                CREATE TABLE terceros_new (
+                    identificador_unico TEXT PRIMARY KEY,
+                    cod_padre TEXT NOT NULL,
+                    nombre TEXT NOT NULL,
+                    nit TEXT NOT NULL,
+                    se_registra INTEGER NOT NULL DEFAULT 1
+                )
+            """)
+            cursor.execute("""
+                INSERT INTO terceros_new (identificador_unico, cod_padre, nombre, nit, se_registra)
+                SELECT cod_padre as identificador_unico, cod_padre, nombre, nit, se_registra
+                FROM terceros
+            """)
+            cursor.execute("DROP TABLE terceros")
+            cursor.execute("ALTER TABLE terceros_new RENAME TO terceros")
+            print("Tabla terceros migrada exitosamente con campo identificador_unico")
 
         # Tabla facturas (líneas procesadas)
         cursor.execute("""
@@ -55,6 +83,7 @@ class Database:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 numero_factura TEXT NOT NULL,
                 fecha TEXT NOT NULL,
+                anulada TEXT,
                 cod_padre TEXT NOT NULL,
                 nombre_tercero TEXT NOT NULL,
                 nit TEXT NOT NULL,
@@ -68,6 +97,47 @@ class Database:
                 fecha_procesamiento TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+        # Migrar tabla facturas si es necesario
+        cursor.execute("""
+            SELECT sql FROM sqlite_master
+            WHERE type='table' AND name='facturas_procesadas'
+        """)
+        table_info = cursor.fetchone()
+        if table_info and 'anulada' not in table_info[0]:
+            # La tabla existe pero no tiene anulada, migrar
+            cursor.execute("""
+                CREATE TABLE facturas_procesadas_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    numero_factura TEXT NOT NULL,
+                    fecha TEXT NOT NULL,
+                    anulada TEXT,
+                    cod_padre TEXT NOT NULL,
+                    nombre_tercero TEXT NOT NULL,
+                    nit TEXT NOT NULL,
+                    codigo_producto TEXT NOT NULL,
+                    descripcion_producto TEXT NOT NULL,
+                    grupo_producto TEXT NOT NULL,
+                    cantidad REAL NOT NULL,
+                    valor_neto REAL NOT NULL,
+                    fue_registrada INTEGER NOT NULL DEFAULT 1,
+                    motivo_rechazo TEXT,
+                    fecha_procesamiento TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                INSERT INTO facturas_procesadas_new
+                (id, numero_factura, fecha, anulada, cod_padre, nombre_tercero, nit,
+                 codigo_producto, descripcion_producto, grupo_producto, cantidad,
+                 valor_neto, fue_registrada, motivo_rechazo, fecha_procesamiento)
+                SELECT id, numero_factura, fecha, '' as anulada, cod_padre, nombre_tercero, nit,
+                 codigo_producto, descripcion_producto, grupo_producto, cantidad,
+                 valor_neto, fue_registrada, motivo_rechazo, fecha_procesamiento
+                FROM facturas_procesadas
+            """)
+            cursor.execute("DROP TABLE facturas_procesadas")
+            cursor.execute("ALTER TABLE facturas_procesadas_new RENAME TO facturas_procesadas")
+            print("Tabla facturas_procesadas migrada exitosamente con campo anulada")
 
         # Índices para mejorar rendimiento
         cursor.execute("""
