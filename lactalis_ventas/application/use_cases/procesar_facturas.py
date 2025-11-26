@@ -40,11 +40,11 @@ class ProcesarFacturasUseCase:
         for linea in lineas:
             try:
                 # Reglas 1, 2 y 3: Se validan en el método es_valida() de FacturaLinea
-                # (Factura empieza con "Factura", Valor neto > 0, No anulada)
+                # (Clase de factura empieza con "Factura", Valor neto > 0, No anulada)
                 if not linea.es_valida():
                     motivo = "Factura inválida: "
-                    if not linea.numero_factura.startswith("Factura"):
-                        motivo += "no empieza con 'Factura'"
+                    if linea.clase_factura and not linea.clase_factura.startswith("Factura"):
+                        motivo += f"clase de factura '{linea.clase_factura}' no empieza con 'Factura'"
                     elif linea.valor_neto <= 0:
                         motivo += f"valor neto inválido ({linea.valor_neto})"
                     elif linea.anulada and str(linea.anulada).strip().upper() == "X":

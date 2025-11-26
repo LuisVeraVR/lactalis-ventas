@@ -12,6 +12,7 @@ class FacturaLinea:
     numero_factura: str
     fecha: datetime
     anulada: str
+    clase_factura: str
     cod_padre: str
     nombre_tercero: str
     nit: str
@@ -34,8 +35,8 @@ class FacturaLinea:
 
     def es_valida(self) -> bool:
         """Verifica si la línea de factura es válida según las reglas de negocio."""
-        # Regla 1: El número de factura debe empezar con "Factura"
-        if not self.numero_factura.startswith("Factura"):
+        # Regla 1: La clase de factura (Cl.Factura) debe empezar con "Factura"
+        if self.clase_factura and not self.clase_factura.startswith("Factura"):
             return False
 
         # Regla 2: El valor neto debe ser mayor que 0

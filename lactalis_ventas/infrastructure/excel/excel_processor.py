@@ -12,6 +12,7 @@ class ExcelProcessor:
     # Columnas esperadas en el Excel
     COLUMNAS_ESPERADAS = {
         "numero_factura": ["factura", "numero_factura", "nro_factura", "número factura"],
+        "clase_factura": ["cl.factura", "cl factura", "clase factura", "clase_factura", "tipo factura"],
         "fecha": ["fechafact.", "fecha_factura", "fecha", "fechafact", "fecha fact."],
         "anulada": ["anulada"],
         "cod_padre": ["cód.padre", "cod.padre", "código padre", "codigo padre", "cod_padre", "codigo_padre"],
@@ -47,10 +48,10 @@ class ExcelProcessor:
             # Mapear columnas
             columnas_mapeadas = self._mapear_columnas(df.columns)
 
-            # Validar que existan las columnas requeridas (excepto anulada y nit que son opcionales)
+            # Validar que existan las columnas requeridas (excepto anulada, nit y clase_factura que son opcionales)
             columnas_requeridas = [
                 col for col in self.COLUMNAS_ESPERADAS.keys()
-                if col not in ["anulada", "nit"]
+                if col not in ["anulada", "nit", "clase_factura"]
             ]
             columnas_faltantes = [
                 col for col in columnas_requeridas
@@ -71,6 +72,11 @@ class ExcelProcessor:
             if "nit" not in columnas_mapeadas:
                 df["_nit_default"] = ""
                 columnas_mapeadas["nit"] = "_nit_default"
+
+            # Si no hay columna clase_factura, agregar una por defecto con valor vacío
+            if "clase_factura" not in columnas_mapeadas:
+                df["_clase_factura_default"] = ""
+                columnas_mapeadas["clase_factura"] = "_clase_factura_default"
 
             # Procesar cada fila
             lineas = []
@@ -128,6 +134,10 @@ class ExcelProcessor:
             anulada_raw = row[columnas_mapeadas["anulada"]]
             anulada = str(anulada_raw).strip() if not pd.isna(anulada_raw) else ""
 
+            # Procesar clase_factura
+            clase_factura_raw = row[columnas_mapeadas["clase_factura"]]
+            clase_factura = str(clase_factura_raw).strip() if not pd.isna(clase_factura_raw) else ""
+
             cod_padre = str(row[columnas_mapeadas["cod_padre"]]).strip()
             nombre_tercero = str(row[columnas_mapeadas["nombre_tercero"]]).strip()
             nit = str(row[columnas_mapeadas["nit"]]).strip()
@@ -156,6 +166,7 @@ class ExcelProcessor:
                 numero_factura=numero_factura,
                 fecha=fecha,
                 anulada=anulada,
+                clase_factura=clase_factura,
                 cod_padre=cod_padre,
                 nombre_tercero=nombre_tercero,
                 nit=nit,

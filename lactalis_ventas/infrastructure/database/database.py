@@ -84,6 +84,7 @@ class Database:
                 numero_factura TEXT NOT NULL,
                 fecha TEXT NOT NULL,
                 anulada TEXT,
+                clase_factura TEXT,
                 cod_padre TEXT NOT NULL,
                 nombre_tercero TEXT NOT NULL,
                 nit TEXT NOT NULL,
@@ -104,14 +105,15 @@ class Database:
             WHERE type='table' AND name='facturas_procesadas'
         """)
         table_info = cursor.fetchone()
-        if table_info and 'anulada' not in table_info[0]:
-            # La tabla existe pero no tiene anulada, migrar
+        if table_info and ('anulada' not in table_info[0] or 'clase_factura' not in table_info[0]):
+            # La tabla existe pero no tiene anulada o clase_factura, migrar
             cursor.execute("""
                 CREATE TABLE facturas_procesadas_new (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     numero_factura TEXT NOT NULL,
                     fecha TEXT NOT NULL,
                     anulada TEXT,
+                    clase_factura TEXT,
                     cod_padre TEXT NOT NULL,
                     nombre_tercero TEXT NOT NULL,
                     nit TEXT NOT NULL,
@@ -127,10 +129,13 @@ class Database:
             """)
             cursor.execute("""
                 INSERT INTO facturas_procesadas_new
-                (id, numero_factura, fecha, anulada, cod_padre, nombre_tercero, nit,
+                (id, numero_factura, fecha, anulada, clase_factura, cod_padre, nombre_tercero, nit,
                  codigo_producto, descripcion_producto, grupo_producto, cantidad,
                  valor_neto, fue_registrada, motivo_rechazo, fecha_procesamiento)
-                SELECT id, numero_factura, fecha, '' as anulada, cod_padre, nombre_tercero, nit,
+                SELECT id, numero_factura, fecha,
+                       COALESCE(anulada, '') as anulada,
+                       '' as clase_factura,
+                       cod_padre, nombre_tercero, nit,
                  codigo_producto, descripcion_producto, grupo_producto, cantidad,
                  valor_neto, fue_registrada, motivo_rechazo, fecha_procesamiento
                 FROM facturas_procesadas

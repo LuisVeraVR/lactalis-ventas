@@ -74,6 +74,7 @@ class TestEntidades(unittest.TestCase):
             numero_factura="Factura001",
             fecha=datetime.now(),
             anulada="",
+            clase_factura="Factura",
             cod_padre="T001",
             nombre_tercero="Cliente",
             nit="123456789",
@@ -87,11 +88,12 @@ class TestEntidades(unittest.TestCase):
         self.assertEqual(linea.numero_factura, "Factura001")
 
     def test_validacion_factura_numero(self):
-        """Test: Validación de número de factura."""
+        """Test: Validación de clase de factura."""
         linea = FacturaLinea(
-            numero_factura="FAC001",  # No empieza con "Factura"
+            numero_factura="FAC001",
             fecha=datetime.now(),
             anulada="",
+            clase_factura="Nota Crédito",  # No empieza con "Factura"
             cod_padre="T001",
             nombre_tercero="Cliente",
             nit="123456789",
@@ -109,6 +111,7 @@ class TestEntidades(unittest.TestCase):
             numero_factura="Factura001",
             fecha=datetime.now(),
             anulada="",
+            clase_factura="Factura",
             cod_padre="T001",
             nombre_tercero="Cliente",
             nit="123456789",
@@ -203,6 +206,7 @@ class TestRepositorios(unittest.TestCase):
             numero_factura="Factura001",
             fecha=datetime.now(),
             anulada="",
+            clase_factura="Factura",
             cod_padre="T001",
             nombre_tercero="Cliente",
             nit="123456789",
@@ -263,6 +267,7 @@ class TestCasosDeUso(unittest.TestCase):
             numero_factura="Factura001",
             fecha=datetime.now(),
             anulada="",
+            clase_factura="Factura",
             cod_padre="T001",
             nombre_tercero="Cliente Test",
             nit="123456789",
@@ -285,6 +290,7 @@ class TestCasosDeUso(unittest.TestCase):
             numero_factura="FAC001",  # No empieza con "Factura"
             fecha=datetime.now(),
             anulada="",
+            clase_factura="Factura",
             cod_padre="T001",
             nombre_tercero="Cliente Test",
             nit="123456789",
@@ -306,6 +312,7 @@ class TestCasosDeUso(unittest.TestCase):
             numero_factura="Factura001",
             fecha=datetime.now(),
             anulada="",
+            clase_factura="Factura",
             cod_padre="T001",
             nombre_tercero="Cliente Test",
             nit="123456789",
@@ -331,6 +338,7 @@ class TestCasosDeUso(unittest.TestCase):
             numero_factura="Factura001",
             fecha=datetime.now(),
             anulada="",
+            clase_factura="Factura",
             cod_padre="T001",
             nombre_tercero="Cliente Test",
             nit="123456789",
@@ -361,6 +369,7 @@ class TestCasosDeUso(unittest.TestCase):
             numero_factura="Factura001",
             fecha=datetime.now(),
             anulada="",
+            clase_factura="Factura",
             cod_padre="T001",
             nombre_tercero="Cliente Test",
             nit="123456789",
@@ -391,6 +400,7 @@ class TestCasosDeUso(unittest.TestCase):
             numero_factura="Factura001",
             fecha=datetime.now(),
             anulada="",
+            clase_factura="Factura",
             cod_padre="T001",
             nombre_tercero="Cliente Test",
             nit="123456789",
@@ -416,6 +426,7 @@ class TestCasosDeUso(unittest.TestCase):
             numero_factura="Factura001",
             fecha=datetime.now(),
             anulada="",
+            clase_factura="Factura",
             cod_padre="T999",  # Tercero que no existe en BD
             nombre_tercero="Cliente Test",
             nit="123456789",
