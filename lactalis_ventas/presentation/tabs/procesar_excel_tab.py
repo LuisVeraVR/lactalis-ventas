@@ -17,15 +17,39 @@ class ProcessThread(QThread):
     error = pyqtSignal(str)  # Emite errores
     progress = pyqtSignal(int, int, str)  # Emite progreso (actual, total, mensaje)
 
-    def __init__(self, excel_processor, procesar_uc, archivo):
+    def __init__(self, excel_processor, archivo, db_path="lactalis.db"):
         super().__init__()
         self.excel_processor = excel_processor
-        self.procesar_uc = procesar_uc
         self.archivo = archivo
+        self.db_path = db_path
 
     def run(self):
         """Ejecuta el procesamiento."""
+        database = None
         try:
+            # Crear conexión a la base de datos en este thread
+            from lactalis_ventas.infrastructure.database.database import Database
+            from lactalis_ventas.infrastructure.database.producto_repository_impl import ProductoRepositoryImpl
+            from lactalis_ventas.infrastructure.database.tercero_repository_impl import TerceroRepositoryImpl
+            from lactalis_ventas.infrastructure.database.factura_repository_impl import FacturaRepositoryImpl
+            from lactalis_ventas.application.use_cases.procesar_facturas import ProcesarFacturasUseCase
+
+            self.progress.emit(0, 0, "Inicializando base de datos...")
+            database = Database(self.db_path)
+            database.conectar()
+
+            # Crear repositorios con la conexión de este thread
+            producto_repo = ProductoRepositoryImpl(database)
+            tercero_repo = TerceroRepositoryImpl(database)
+            factura_repo = FacturaRepositoryImpl(database)
+
+            # Crear caso de uso con los repositorios de este thread
+            procesar_uc = ProcesarFacturasUseCase(
+                producto_repo,
+                tercero_repo,
+                factura_repo
+            )
+
             # Leer archivo Excel
             self.progress.emit(0, 0, "Leyendo archivo Excel...")
             lineas = self.excel_processor.procesar_archivo(self.archivo)
@@ -34,42 +58,21 @@ class ProcessThread(QThread):
             total = len(lineas)
             self.progress.emit(0, total, f"Procesando {total} líneas de facturas...")
 
-            # Procesar facturas línea por línea para emitir progreso
-            from lactalis_ventas.domain.value_objects.resultado_procesamiento import ResultadoProcesamiento
-            resultado = ResultadoProcesamiento(total_lineas=total)
+            # Procesar facturas con actualización de progreso
+            resultado = procesar_uc.ejecutar(lineas)
 
-            for i, linea in enumerate(lineas):
-                try:
-                    # Emitir progreso
-                    if i % 10 == 0:  # Cada 10 líneas para no saturar
-                        self.progress.emit(i, total, f"Procesando línea {i+1} de {total}...")
-
-                    # Aplicar las mismas reglas que en el caso de uso
-                    if not linea.numero_factura.startswith("Factura"):
-                        linea.marcar_como_rechazada("Factura no empieza con 'Factura'")
-                        resultado.agregar_linea_rechazada(linea)
-                        continue
-
-                    if linea.valor_neto <= 0:
-                        linea.marcar_como_rechazada(f"Valor neto inválido: {linea.valor_neto}")
-                        resultado.agregar_linea_rechazada(linea)
-                        continue
-
-                    # Aquí simplificamos ya que el proceso completo está en el caso de uso
-                    # Solo emitimos progreso y dejamos que el caso de uso procese
-                    linea.marcar_como_registrada()
-                    resultado.agregar_linea_registrada(linea)
-
-                except Exception as e:
-                    resultado.agregar_error(str(e))
-
-            # Ahora ejecutar el caso de uso completo con todas las validaciones
-            self.progress.emit(total, total, "Aplicando reglas de negocio...")
-            resultado = self.procesar_uc.ejecutar(lineas)
+            # Emitir progreso completo
+            self.progress.emit(total, total, "Procesamiento completado")
 
             self.finished.emit(resultado)
         except Exception as e:
-            self.error.emit(str(e))
+            import traceback
+            error_msg = f"Error procesando línea: {str(e)}\n{traceback.format_exc()}"
+            self.error.emit(error_msg)
+        finally:
+            # Cerrar la conexión de base de datos de este thread
+            if database:
+                database.cerrar()
 
 
 class ProcesarExcelTab(QWidget):
@@ -271,11 +274,11 @@ class ProcesarExcelTab(QWidget):
         )
         self.progress_dialog.show()
 
-        # Crear y ejecutar thread
+        # Crear y ejecutar thread (sin pasar procesar_uc ya que se crea dentro del thread)
         self.process_thread = ProcessThread(
             self.excel_processor,
-            self.procesar_uc,
-            self.archivo_seleccionado
+            self.archivo_seleccionado,
+            "lactalis.db"  # Ruta de la base de datos
         )
         self.process_thread.finished.connect(self._on_proceso_completado)
         self.process_thread.error.connect(self._on_proceso_error)
