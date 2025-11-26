@@ -12,7 +12,7 @@ class ExcelProcessor:
     # Columnas esperadas en el Excel
     COLUMNAS_ESPERADAS = {
         "numero_factura": ["factura", "numero_factura", "nro_factura", "número factura"],
-        "clase_factura": ["cl.factura", "cl factura", "clase factura", "clase_factura", "tipo factura"],
+        "clase_factura": ["Cl.Factura", "cl.factura", "cl factura", "clase factura", "clase_factura", "tipo factura"],  # Cl.Factura (F mayúscula) primero
         "fecha": ["fechafact.", "fecha_factura", "fecha", "fechafact", "fecha fact."],
         "anulada": ["anulada"],
         "cod_padre": ["cód.padre", "cod.padre", "código padre", "codigo padre", "cod_padre", "codigo_padre"],
@@ -95,16 +95,28 @@ class ExcelProcessor:
             raise Exception(f"Error al procesar archivo Excel: {str(e)}")
 
     def _mapear_columnas(self, columnas_df: List[str]) -> dict:
-        """Mapea las columnas del DataFrame a las columnas esperadas."""
+        """Mapea las columnas del DataFrame a las columnas esperadas.
+
+        Primero intenta coincidencias exactas (case-sensitive), luego case-insensitive.
+        Esto permite distinguir entre columnas como 'Cl.factura' y 'Cl.Factura'.
+        """
         mapeo = {}
         columnas_df_lower = [col.lower().strip() for col in columnas_df]
 
         for col_esperada, variantes in self.COLUMNAS_ESPERADAS.items():
+            # Primero intentar coincidencia exacta (case-sensitive)
             for variante in variantes:
-                if variante.lower() in columnas_df_lower:
-                    idx = columnas_df_lower.index(variante.lower())
-                    mapeo[col_esperada] = columnas_df[idx]
+                if variante in columnas_df:
+                    mapeo[col_esperada] = variante
                     break
+
+            # Si no se encontró coincidencia exacta, intentar case-insensitive
+            if col_esperada not in mapeo:
+                for variante in variantes:
+                    if variante.lower() in columnas_df_lower:
+                        idx = columnas_df_lower.index(variante.lower())
+                        mapeo[col_esperada] = columnas_df[idx]
+                        break
 
         return mapeo
 
