@@ -89,6 +89,10 @@ class ProcesarFacturasUseCase:
                     resultado.agregar_linea_rechazada(linea)
                     continue
 
+                # Actualizar datos del tercero desde la BD (especialmente el NIT)
+                linea.nit = tercero.nit
+                linea.nombre_tercero = tercero.nombre
+
                 # Si pasó todas las validaciones, marcar como registrada
                 linea.marcar_como_registrada()
                 resultado.agregar_linea_registrada(linea)

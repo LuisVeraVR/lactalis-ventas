@@ -47,10 +47,10 @@ class ExcelProcessor:
             # Mapear columnas
             columnas_mapeadas = self._mapear_columnas(df.columns)
 
-            # Validar que existan las columnas requeridas (excepto anulada que es opcional)
+            # Validar que existan las columnas requeridas (excepto anulada y nit que son opcionales)
             columnas_requeridas = [
                 col for col in self.COLUMNAS_ESPERADAS.keys()
-                if col != "anulada"
+                if col not in ["anulada", "nit"]
             ]
             columnas_faltantes = [
                 col for col in columnas_requeridas
@@ -66,6 +66,11 @@ class ExcelProcessor:
             if "anulada" not in columnas_mapeadas:
                 df["_anulada_default"] = ""
                 columnas_mapeadas["anulada"] = "_anulada_default"
+
+            # Si no hay columna nit, agregar una por defecto con valor vacío
+            if "nit" not in columnas_mapeadas:
+                df["_nit_default"] = ""
+                columnas_mapeadas["nit"] = "_nit_default"
 
             # Procesar cada fila
             lineas = []
