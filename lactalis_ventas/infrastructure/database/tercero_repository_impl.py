@@ -17,6 +17,14 @@ class TerceroRepositoryImpl(TerceroRepository):
         rows = cursor.fetchall()
         return [self._row_to_tercero(row) for row in rows]
 
+    def obtener_activos(self) -> List[Tercero]:
+        """Obtiene terceros activos (se_registra=1)."""
+        cursor = self.db.ejecutar_query(
+            "SELECT * FROM terceros WHERE se_registra = 1 ORDER BY nombre"
+        )
+        rows = cursor.fetchall()
+        return [self._row_to_tercero(row) for row in rows]
+
     def obtener_por_cod_padre(self, cod_padre: str) -> Optional[Tercero]:
         """Obtiene un tercero por su código padre."""
         cursor = self.db.ejecutar_query(

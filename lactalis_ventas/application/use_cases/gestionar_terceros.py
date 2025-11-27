@@ -10,8 +10,10 @@ class ListarTercerosUseCase:
     def __init__(self, tercero_repo: TerceroRepository):
         self.tercero_repo = tercero_repo
 
-    def ejecutar(self) -> List[Tercero]:
-        """Lista todos los terceros."""
+    def ejecutar(self, solo_activos: bool = False) -> List[Tercero]:
+        """Lista todos los terceros, o solo los activos."""
+        if solo_activos:
+            return self.tercero_repo.obtener_activos()
         return self.tercero_repo.obtener_todos()
 
 

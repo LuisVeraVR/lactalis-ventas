@@ -13,13 +13,18 @@ class TerceroRepository(ABC):
         pass
 
     @abstractmethod
+    def obtener_activos(self) -> List[Tercero]:
+        """Obtiene solo los terceros con se_registra=True."""
+        pass
+
+    @abstractmethod
     def obtener_por_cod_padre(self, cod_padre: str) -> Optional[Tercero]:
-        """Obtiene un tercero por su código padre."""
+        """Obtiene un tercero por su codigo padre."""
         pass
 
     @abstractmethod
     def obtener_por_identificador(self, identificador_unico: str) -> Optional[Tercero]:
-        """Obtiene un tercero por su identificador único."""
+        """Obtiene un tercero por su identificador unico."""
         pass
 
     @abstractmethod
@@ -34,5 +39,5 @@ class TerceroRepository(ABC):
 
     @abstractmethod
     def buscar(self, termino: str) -> List[Tercero]:
-        """Busca terceros por término."""
+        """Busca terceros por termino."""
         pass

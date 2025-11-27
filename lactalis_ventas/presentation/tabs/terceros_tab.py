@@ -1,4 +1,5 @@
 """Pestana para gestionar terceros."""
+import pandas as pd
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QLineEdit, QTableView, QMessageBox, QHeaderView, QGroupBox,
@@ -179,6 +180,23 @@ class TercerosTab(QWidget):
         """)
         layout_busqueda.addWidget(btn_importar)
 
+        btn_exportar = QPushButton("Exportar activos")
+        btn_exportar.clicked.connect(self._exportar_activos)
+        btn_exportar.setStyleSheet("""
+            QPushButton {
+                background-color: #8e44ad;
+                color: white;
+                padding: 8px 16px;
+                border: none;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #7d3c98;
+            }
+        """)
+        layout_busqueda.addWidget(btn_exportar)
+
         grupo_busqueda.setLayout(layout_busqueda)
         layout.addWidget(grupo_busqueda)
 
@@ -248,6 +266,50 @@ class TercerosTab(QWidget):
             f"Total: {len(terceros)} terceros | "
             f"Activos: {activos} | Inactivos: {inactivos}"
         )
+
+    def _exportar_activos(self):
+        """Exporta a Excel solo los terceros activos con todos los campos."""
+        terceros_activos = self.listar_uc.ejecutar(solo_activos=True)
+        if not terceros_activos:
+            QMessageBox.information(self, "Sin datos", "No hay terceros activos para exportar.")
+            return
+
+        ruta, _ = QFileDialog.getSaveFileName(
+            self,
+            "Guardar Excel de terceros activos",
+            "terceros_activos.xlsx",
+            "Archivos Excel (*.xlsx)"
+        )
+        if not ruta:
+            return
+
+        # Asegurar extension
+        if not ruta.lower().endswith(".xlsx"):
+            ruta = f"{ruta}.xlsx"
+
+        try:
+            data = [
+                {
+                    "identificador_unico": t.identificador_unico,
+                    "cod_padre": t.cod_padre,
+                    "nombre": t.nombre,
+                    "nit": t.nit,
+                    "se_registra": t.se_registra,
+                }
+                for t in terceros_activos
+            ]
+            pd.DataFrame(data).to_excel(ruta, index=False)
+            QMessageBox.information(
+                self,
+                "Exportacion exitosa",
+                f"Se exportaron {len(terceros_activos)} terceros activos a:\n{ruta}"
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Error al exportar",
+                f"No se pudo crear el Excel:\n\n{str(e)}"
+            )
 
     def _on_tabla_click(self, index: QModelIndex):
         """Maneja clicks en la tabla (columna de accion)."""
